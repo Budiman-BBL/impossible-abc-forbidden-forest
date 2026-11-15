@@ -1,6 +1,6 @@
 import Phaser from "phaser";
-import { StoryScene } from "./StoryScene";
-import { StoryHud } from "./StoryHud";
+import { CampScene } from "./CampScene";
+import { CampHud } from "./CampHud";
 import { RigTestScene } from "./RigTestScene";
 import { isNativeApp, setupFullscreenOnFirstTap } from "../platform";
 
@@ -26,7 +26,7 @@ const game = new Phaser.Game({
   input: { activePointers: 3 },
   render: { antialias: true, roundPixels: false, powerPreference: "high-performance" },
   // ?rig=1: dev-only rig test page (Affan large on a checkerboard, deterministic poses for screenshots)
-  scene: new URLSearchParams(location.search).has("rig") ? [RigTestScene] : [StoryScene, StoryHud],
+  scene: new URLSearchParams(location.search).has("rig") ? [RigTestScene] : [CampScene, CampHud],
 });
 let pending = 0;
 function fit(): void {
