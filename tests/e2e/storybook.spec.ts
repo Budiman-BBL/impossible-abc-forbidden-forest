@@ -45,8 +45,8 @@ test("sprint 1: tapping the title card starts Hari 1", async ({ page }) => {
 });
 
 test("sprint 1: gather, light the fire, survive the night until pagi", async ({ page }) => {
-  // Software rendering on CI can drop to a few fps; the gather pose runs on game time.
-  test.setTimeout(240_000);
+  // Software rendering on CI can drop to ~1 fps at 1080p; game time is capped per frame, so clock jumps land just before the phase change.
+  test.setTimeout(420_000);
   const errors: string[] = [];
   await boot(page, errors);
   await sb(page, () => window.__ABC_SB__.start());
@@ -68,9 +68,9 @@ test("sprint 1: gather, light the fire, survive the night until pagi", async ({ 
   expect(await sb(page, () => window.__ABC_SB__.fire.radius)).toBeGreaterThan(0);
 
   // jump to nightfall: wolves arrive and stay outside the light while Affan stands by the fire
-  await sb(page, () => window.__ABC_SB__.setClock(228));
-  await page.waitForFunction(() => window.__ABC_SB__.phase === "malam", null, { timeout: 30_000 });
-  await page.waitForFunction(() => window.__ABC_SB__.wolves.length === 2, null, { timeout: 10_000 });
+  await sb(page, () => window.__ABC_SB__.setClock(229.7));
+  await page.waitForFunction(() => window.__ABC_SB__.phase === "malam", null, { timeout: 90_000 });
+  await page.waitForFunction(() => window.__ABC_SB__.wolves.length === 2, null, { timeout: 30_000 });
   await page.waitForTimeout(2000);
   const night = await page.evaluate(() => {
     const s = window.__ABC_SB__, f = s.camp();
@@ -80,8 +80,8 @@ test("sprint 1: gather, light the fire, survive the night until pagi", async ({ 
   expect(night.hearts).toBe(3);
 
   // jump to just before dawn: Hari 1 is won at pagi
-  await sb(page, () => window.__ABC_SB__.setClock(406));
-  await page.waitForFunction(() => window.__ABC_SB__.outcome === "won", null, { timeout: 60_000 });
+  await sb(page, () => window.__ABC_SB__.setClock(409.7));
+  await page.waitForFunction(() => window.__ABC_SB__.outcome === "won", null, { timeout: 90_000 });
   const saved = await page.evaluate(() => localStorage.getItem("impossibleabc.save.v1"));
   expect(saved).toContain('"version":1');
   expect(errors).toEqual([]);
