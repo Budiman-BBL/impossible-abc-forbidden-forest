@@ -1,0 +1,89 @@
+name: Android APK (Storybook PoC)
+
+# Builds the separate 2D storybook proof-of-concept app (com.budimanbbl.impossibleabc.storybook) from the
+# poc-2d-storybook branch. Tags storybook-v* publish it as a GitHub pre-release. The 2D APK workflow is untouched.
+on:
+  push:
+    branches: [poc-2d-storybook]
+    tags: ["storybook-v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: android-storybook-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build Storybook PoC APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      CAP_TARGET: storybook
+      ABC_TARGET: storybook
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v6
+      - run: npm ci
+      - name: Build storybook web (dist-storybook)
+        run: npx vite build
+      - name: Copy into the PoC Android project
+        run: npx cap sync android
+      - name: Decode signing keystore
+        id: keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "path=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build signed release APK
+        if: steps.keystore.outputs.path != ''
+        working-directory: android-storybook
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/storybook.apk"
+      - name: Build debug APK (no signing secrets available)
+        if: steps.keystore.outputs.path == ''
+        working-directory: android-storybook
+        run: |
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/storybook.apk"
+      - name: Name the APK
+        id: name
+        run: |
+          VERSION=$(grep -oP 'POC_VERSION = "\K[^"]+' src/storybook/version.ts)
+          FILE="ImpossibleABC-Storybook-PoC-v${VERSION}-${GITHUB_SHA::7}.apk"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then FILE="ImpossibleABC-Storybook-PoC-${GITHUB_REF_NAME}.apk"; fi
+          mv "$RUNNER_TEMP/storybook.apk" "$FILE"
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+          ls -la "$FILE"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.name.outputs.file }}
+          path: ${{ steps.name.outputs.file }}
+          retention-days: 30
+      - name: Publish GitHub pre-release (storybook-v* tags only)
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "${{ steps.name.outputs.file }}" --prerelease \
+            --title "Impossible ABC Storybook PoC $GITHUB_REF_NAME (Android APK, test build)" \
+            --notes-file docs/release-notes/$GITHUB_REF_NAME.md \
+            || gh release upload "$GITHUB_REF_NAME" "${{ steps.name.outputs.file }}" --clobber
