@@ -6,7 +6,7 @@ import Phaser from "phaser";
 import { GameCore, seedFromUrl, type CoreEvent } from "../core/game";
 import { CFG } from "../core/balance";
 import { lightAt } from "../core/light";
-import { Affan, ATLAS_KEY, type Facing } from "./affan";
+import { Affan, ATLAS_KEY, preloadAffan, type Facing } from "./affan";
 import { makeLayout, type Pickup, type StoryLayout } from "./layout";
 import { addStone, addWood, canLight, createQuest, questDone, WOOD_GOAL, type QuestState } from "./quest";
 import { makeTextures } from "./textures";
@@ -61,6 +61,7 @@ export class StoryScene extends Phaser.Scene {
 
   preload(): void {
     this.load.atlas(ATLAS_KEY, atlasPng, atlasJson);
+    preloadAffan(this);
     this.load.image("sbGrass", grassJpg);
     this.load.image("sbDirt", dirtPng);
   }

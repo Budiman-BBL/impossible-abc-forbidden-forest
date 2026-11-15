@@ -1,90 +1,360 @@
 {
- "front": {
-  "torso": {
-   "ox": 0.502283105022831,
-   "oy": 0.9958847736625515,
-   "x": 0.0,
-   "y": -84.0
-  },
-  "arm0": {
-   "ox": 0.6166666666666667,
-   "oy": 0.011695906432748537,
-   "x": -42.0,
-   "y": -186.0
-  },
-  "arm1": {
-   "ox": 0.4067796610169492,
-   "oy": 0.011695906432748537,
-   "x": 43.0,
-   "y": -186.0
-  },
-  "leg0": {
-   "ox": 0.51120662808009,
-   "oy": 0.011111111111111112,
-   "x": -27.406048711755233,
-   "y": -88.0
-  },
-  "leg1": {
-   "ox": 0.5095366853365954,
-   "oy": 0.011049723756906077,
-   "x": 25.46729758149317,
-   "y": -88.0
-  }
- },
- "back": {
-  "torso": {
-   "ox": 0.5045662100456622,
-   "oy": 0.9959183673469387,
-   "x": 0.0,
-   "y": -82.0
-  },
-  "arm0": {
-   "ox": 0.5,
-   "oy": 0.012345679012345678,
-   "x": -46.75,
-   "y": -183.0
-  },
-  "arm1": {
-   "ox": 0.47058823529411764,
-   "oy": 0.012345679012345678,
-   "x": 46.25,
-   "y": -183.0
-  },
-  "leg0": {
-   "ox": 0.4667055269751543,
-   "oy": 0.011299435028248588,
-   "x": -26.11478194170502,
-   "y": -86.0
-  },
-  "leg1": {
-   "ox": 0.5170435877778994,
-   "oy": 0.011299435028248588,
-   "x": 25.56809221333917,
-   "y": -86.0
-  }
- },
- "side": {
-  "torso": {
-   "ox": 0.49809885931558934,
-   "oy": 0.9958333333333333,
-   "x": 0.0,
-   "y": -87.5
-  },
-  "arm0": {
-   "ox": 0.5079365079365079,
-   "oy": -0.03773584905660377,
-   "x": -4.5,
-   "y": -187.5
-  },
-  "leg0": {
-   "ox": 0.29545454545454547,
-   "oy": 0.0,
-   "x": -4.0,
-   "y": -91.5
-  }
- },
- "pickup": {
-  "ox": 0.62,
-  "oy": 0.98
+ "version": 2,
+ "atlas": "affan",
+ "scale": 0.32,
+ "note": "x,y = pivot offset from the parent pivot in atlas px (root = feet). ox,oy = pivot as origin fraction of the frame. z = draw order (low first). Side view faces right; left mirrors the whole root container.",
+ "height": 411.5,
+ "views": {
+  "side": [
+   {
+    "id": "hip",
+    "parent": null,
+    "x": 2.56,
+    "y": -146.88,
+    "z": -1
+   },
+   {
+    "id": "torso",
+    "parent": "hip",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 60,
+    "frame": "affan_side_torso",
+    "ox": 0.5063,
+    "oy": 0.9132
+   },
+   {
+    "id": "head",
+    "parent": "torso",
+    "x": -5.76,
+    "y": -133.44,
+    "z": 80,
+    "frame": "affan_side_head",
+    "ox": 0.4057,
+    "oy": 0.8951
+   },
+   {
+    "id": "pack",
+    "parent": "torso",
+    "x": -40.96,
+    "y": -116.8,
+    "z": 70,
+    "frame": "affan_side_pack",
+    "ox": 0.7353,
+    "oy": 0.2211
+   },
+   {
+    "id": "armB",
+    "parent": "torso",
+    "x": -19.2,
+    "y": -115.2,
+    "z": 10,
+    "frame": "affan_side_upperarm",
+    "ox": 0.3696,
+    "oy": 0.1718,
+    "tint": "0x9a8f88"
+   },
+   {
+    "id": "foreB",
+    "parent": "armB",
+    "x": -0.64,
+    "y": 82.24,
+    "z": 5,
+    "frame": "affan_side_forearm",
+    "ox": 0.2576,
+    "oy": 0.1891,
+    "tint": "0x9a8f88"
+   },
+   {
+    "id": "thighB",
+    "parent": "hip",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 30,
+    "frame": "affan_side_thigh",
+    "ox": 0.5122,
+    "oy": 0.2414,
+    "tint": "0x9a8f88"
+   },
+   {
+    "id": "shinB",
+    "parent": "thighB",
+    "x": -8.96,
+    "y": 42.56,
+    "z": 25,
+    "frame": "affan_side_shin",
+    "ox": 0.2552,
+    "oy": 0.1081,
+    "tint": "0x9a8f88"
+   },
+   {
+    "id": "thighF",
+    "parent": "hip",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 50,
+    "frame": "affan_side_thigh",
+    "ox": 0.5122,
+    "oy": 0.2414
+   },
+   {
+    "id": "shinF",
+    "parent": "thighF",
+    "x": -8.96,
+    "y": 42.56,
+    "z": 45,
+    "frame": "affan_side_shin",
+    "ox": 0.2552,
+    "oy": 0.1081
+   },
+   {
+    "id": "armF",
+    "parent": "torso",
+    "x": -15.36,
+    "y": -115.2,
+    "z": 90,
+    "frame": "affan_side_upperarm",
+    "ox": 0.4565,
+    "oy": 0.1718
+   },
+   {
+    "id": "foreF",
+    "parent": "armF",
+    "x": -0.64,
+    "y": 82.24,
+    "z": 95,
+    "frame": "affan_side_forearm",
+    "ox": 0.3485,
+    "oy": 0.1891
+   }
+  ],
+  "front": [
+   {
+    "id": "hip",
+    "parent": null,
+    "x": 0.0,
+    "y": -147.84,
+    "z": -1
+   },
+   {
+    "id": "torso",
+    "parent": "hip",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 40,
+    "frame": "affan_front_torso",
+    "ox": 0.4983,
+    "oy": 0.9102
+   },
+   {
+    "id": "head",
+    "parent": "torso",
+    "x": 0.0,
+    "y": -137.6,
+    "z": 90,
+    "frame": "affan_front_head",
+    "ox": 0.4985,
+    "oy": 0.8894
+   },
+   {
+    "id": "thighL",
+    "parent": "hip",
+    "x": -25.6,
+    "y": 0.0,
+    "z": 30,
+    "frame": "affan_front_thighL",
+    "ox": 0.503,
+    "oy": 0.1893
+   },
+   {
+    "id": "shinL",
+    "parent": "thighL",
+    "x": -6.4,
+    "y": 45.76,
+    "z": 20,
+    "frame": "affan_front_shinL",
+    "ox": 0.5571,
+    "oy": 0.0978
+   },
+   {
+    "id": "armL",
+    "parent": "torso",
+    "x": -50.24,
+    "y": -115.2,
+    "z": 60,
+    "frame": "affan_front_upperarmL",
+    "ox": 0.568,
+    "oy": 0.1677
+   },
+   {
+    "id": "foreL",
+    "parent": "armL",
+    "x": -8.0,
+    "y": 79.04,
+    "z": 65,
+    "frame": "affan_front_forearmL",
+    "ox": 0.6509,
+    "oy": 0.18
+   },
+   {
+    "id": "thighR",
+    "parent": "hip",
+    "x": 25.6,
+    "y": 0.0,
+    "z": 30,
+    "frame": "affan_front_thighR",
+    "ox": 0.4941,
+    "oy": 0.1893
+   },
+   {
+    "id": "shinR",
+    "parent": "thighR",
+    "x": 6.4,
+    "y": 45.76,
+    "z": 20,
+    "frame": "affan_front_shinR",
+    "ox": 0.4354,
+    "oy": 0.0978
+   },
+   {
+    "id": "armR",
+    "parent": "torso",
+    "x": 50.24,
+    "y": -115.2,
+    "z": 60,
+    "frame": "affan_front_upperarmR",
+    "ox": 0.424,
+    "oy": 0.1735
+   },
+   {
+    "id": "foreR",
+    "parent": "armR",
+    "x": 8.0,
+    "y": 79.04,
+    "z": 65,
+    "frame": "affan_front_forearmR",
+    "ox": 0.3396,
+    "oy": 0.18
+   }
+  ],
+  "back": [
+   {
+    "id": "hip",
+    "parent": null,
+    "x": 0.0,
+    "y": -146.24,
+    "z": -1
+   },
+   {
+    "id": "torso",
+    "parent": "hip",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 40,
+    "frame": "affan_back_torso",
+    "ox": 0.5017,
+    "oy": 0.9037
+   },
+   {
+    "id": "head",
+    "parent": "torso",
+    "x": 0.0,
+    "y": -137.6,
+    "z": 90,
+    "frame": "affan_back_head",
+    "ox": 0.5015,
+    "oy": 0.8881
+   },
+   {
+    "id": "pack",
+    "parent": "torso",
+    "x": 0.0,
+    "y": -116.8,
+    "z": 70,
+    "frame": "affan_back_pack",
+    "ox": 0.4966,
+    "oy": 0.1837
+   },
+   {
+    "id": "thighL",
+    "parent": "hip",
+    "x": -25.28,
+    "y": 0.0,
+    "z": 30,
+    "frame": "affan_back_thighL",
+    "ox": 0.5089,
+    "oy": 0.1893
+   },
+   {
+    "id": "shinL",
+    "parent": "thighL",
+    "x": -5.76,
+    "y": 48.96,
+    "z": 20,
+    "frame": "affan_back_shinL",
+    "ox": 0.5538,
+    "oy": 0.1023
+   },
+   {
+    "id": "armL",
+    "parent": "torso",
+    "x": -49.28,
+    "y": -115.2,
+    "z": 50,
+    "frame": "affan_back_upperarmL",
+    "ox": 0.5496,
+    "oy": 0.1768
+   },
+   {
+    "id": "foreL",
+    "parent": "armL",
+    "x": -7.36,
+    "y": 77.76,
+    "z": 55,
+    "frame": "affan_back_forearmL",
+    "ox": 0.6574,
+    "oy": 0.1782
+   },
+   {
+    "id": "thighR",
+    "parent": "hip",
+    "x": 25.28,
+    "y": 0.0,
+    "z": 30,
+    "frame": "affan_back_thighR",
+    "ox": 0.4882,
+    "oy": 0.1893
+   },
+   {
+    "id": "shinR",
+    "parent": "thighR",
+    "x": 5.76,
+    "y": 48.96,
+    "z": 20,
+    "frame": "affan_back_shinR",
+    "ox": 0.4462,
+    "oy": 0.1026
+   },
+   {
+    "id": "armR",
+    "parent": "torso",
+    "x": 49.28,
+    "y": -115.2,
+    "z": 50,
+    "frame": "affan_back_upperarmR",
+    "ox": 0.447,
+    "oy": 0.1742
+   },
+   {
+    "id": "foreR",
+    "parent": "armR",
+    "x": 7.36,
+    "y": 77.76,
+    "z": 55,
+    "frame": "affan_back_forearmR",
+    "ox": 0.3364,
+    "oy": 0.1782
+   }
+  ]
  }
 }
