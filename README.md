@@ -8,6 +8,8 @@ Dibina dengan **Phaser 3 + TypeScript + Vite**, untuk browser dahulu dan kemudia
 
 ▶️ **Main di browser / telefon (landskap):** https://budiman-bbl.github.io/impossible-abc-forbidden-forest/
 
+📱 **APK Android:** muat turun dari [Releases](https://github.com/Budiman-BBL/impossible-abc-forbidden-forest/releases/latest) (Android 7.0+). Benarkan "Pasang apl tidak diketahui" bila diminta.
+
 ## Status: Sprint 1 (asas repo dan gelung teras)
 
 **Yang berfungsi sekarang**
@@ -23,7 +25,7 @@ Dibina dengan **Phaser 3 + TypeScript + Vite**, untuk browser dahulu dan kemudia
 - Menu dan pilih watak, gerak watak dengan joystick (Sprint 2).
 - Kutip batu, hotbar inventori, kitaran siang/malam sebenar, simpanan (Sprint 3). Paparan "Malam N" sekarang hanyalah kiraan malam v2 setiap 75 s yang mempercepat api padam, bukan siang/malam.
 - Pengikut AI, babi hutan, Hantar Obor, Api Ajaib, kem kedua dan ketiga (sprint kemudian). Naik taraf api belum membuka watak baru.
-- Bunyi dan muzik. APK Android (Sprint 5).
+- Bunyi dan muzik. (APK Android sudah ada sejak v0.2.0, lihat D9.)
 - **Semua sprite ialah aset sementara (interim)** dari prototaip v2 (gaya lama, satu pose). Ia akan diganti dengan seni dari *official style sheet v2*.
 
 ## Cara jalankan
@@ -38,6 +40,14 @@ npm run build      # build web ke dist/
 npm run test:e2e   # ujian Playwright (desktop + Android landskap); perlukan `npx playwright install chromium`
 npm run atlas      # jana semula atlas sprite interim (perlukan Python + Pillow)
 ```
+
+**APK Android (Capacitor):** perlukan JDK 21 dan Android SDK 36.
+
+```bash
+npm run build && npx cap sync android
+cd android && ./gradlew assembleDebug   # app/build/outputs/apk/debug/app-debug.apk
+```
+APK bertandatangan dibina oleh GitHub Actions (`android.yml`); tag `v*` menerbitkan GitHub Release.
 
 Tambah `?seed=2026` pada URL untuk dunia yang sama setiap kali.
 
@@ -64,6 +74,6 @@ Dokumen: [DECISIONS](docs/DECISIONS.md) · [Seni bina](docs/architecture.md) · 
 
 2D survival adventure starring the seven original characters of *The Impossible ABC*. Phaser 3 + TypeScript + Vite; browser first, Android APK via Capacitor later.
 
-**Sprint 1 status:** the legacy v2 campfire loop now runs in Phaser in landscape: fuel decays, the light circle shrinks, tap lit trees for wood, tap the fire to feed it, upgrade the fire, game over when it goes out. Fire/light formulas are unit-tested against the legacy v2 file itself. **Not yet:** character select, joystick movement, inventory, real day/night, saving, enemies/followers, audio, Android build. All sprites are **interim** (from the old prototype) until the official style v2 art is cut.
+**Sprint 1 status:** the legacy v2 campfire loop now runs in Phaser in landscape: fuel decays, the light circle shrinks, tap lit trees for wood, tap the fire to feed it, upgrade the fire, game over when it goes out. Fire/light formulas are unit-tested against the legacy v2 file itself. **Not yet:** character select, joystick movement, inventory, real day/night, saving, enemies/followers, audio. **Android APK** (v0.2.0+): see Releases. All sprites are **interim** (from the old prototype) until the official style v2 art is cut.
 
 Play: https://budiman-bbl.github.io/impossible-abc-forbidden-forest/ · Project owner: Budiman (final approval on every sprint).
