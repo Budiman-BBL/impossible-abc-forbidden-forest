@@ -1,0 +1,89 @@
+name: Android APK (3D PoC)
+
+# Builds the separate 3D proof-of-concept app (com.budimanbbl.impossibleabc.poc3d) from the
+# poc-3d branch. Tags poc3d-v* publish it as a GitHub pre-release. The 2D APK workflow is untouched.
+on:
+  push:
+    branches: [poc-3d]
+    tags: ["poc3d-v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: android-poc3d-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build 3D PoC APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      CAP_TARGET: poc3d
+      ABC_TARGET: "3d"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v6
+      - run: npm ci
+      - name: Build 3D web (dist-3d)
+        run: npx vite build
+      - name: Copy into the PoC Android project
+        run: npx cap sync android
+      - name: Decode signing keystore
+        id: keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "path=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build signed release APK
+        if: steps.keystore.outputs.path != ''
+        working-directory: android-poc3d
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/poc3d.apk"
+      - name: Build debug APK (no signing secrets available)
+        if: steps.keystore.outputs.path == ''
+        working-directory: android-poc3d
+        run: |
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/poc3d.apk"
+      - name: Name the APK
+        id: name
+        run: |
+          VERSION=$(grep -oP 'POC_VERSION = "\K[^"]+' src/three/version.ts)
+          FILE="ImpossibleABC-3D-PoC-v${VERSION}-${GITHUB_SHA::7}.apk"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then FILE="ImpossibleABC-3D-PoC-${GITHUB_REF_NAME}.apk"; fi
+          mv "$RUNNER_TEMP/poc3d.apk" "$FILE"
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+          ls -la "$FILE"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.name.outputs.file }}
+          path: ${{ steps.name.outputs.file }}
+          retention-days: 30
+      - name: Publish GitHub pre-release (poc3d-v* tags only)
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "${{ steps.name.outputs.file }}" --prerelease \
+            --title "Impossible ABC 3D PoC $GITHUB_REF_NAME (Android APK, test build)" \
+            --notes-file docs/release-notes/$GITHUB_REF_NAME.md \
+            || gh release upload "$GITHUB_REF_NAME" "${{ steps.name.outputs.file }}" --clobber
