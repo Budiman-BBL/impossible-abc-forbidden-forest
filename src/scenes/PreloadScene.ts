@@ -1,5 +1,6 @@
 import Phaser from "phaser";
-import { ATLAS, GAME_H, GAME_W } from "../config";
+import { ATLAS } from "../config";
+import { viewMetrics } from "../ui/layout";
 import { FONT, PALETTE, css } from "../ui/palette";
 
 /** Preload: loads the interim atlas and builds the light textures, with a parchment loading bar. */
@@ -9,21 +10,23 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload(): void {
-    const cx = GAME_W / 2;
-    const cy = GAME_H / 2;
+    const cx = this.scale.width / 2;
+    const cy = this.scale.height / 2;
+    const k = viewMetrics(this.scale.width, this.scale.height).ui;
     this.add
       .text(cx, cy - 70, "Impossible ABC\nThe Forbidden Forest", {
-        fontFamily: FONT, fontSize: "40px", fontStyle: "bold", color: css(PALETTE.parchmentLight), align: "center",
-        stroke: css(PALETTE.ink), strokeThickness: 6,
+        fontFamily: FONT, fontSize: `${Math.round(40 * k)}px`, fontStyle: "bold", color: css(PALETTE.parchmentLight), align: "center",
+        stroke: css(PALETTE.ink), strokeThickness: 6 * k,
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setY(cy - 70 * k);
     const g = this.add.graphics();
-    const w = 420;
+    const w = 420 * k;
     const draw = (p: number) => {
       g.clear();
-      g.fillStyle(PALETTE.barBack).fillRoundedRect(cx - w / 2, cy + 30, w, 22, 11);
-      g.fillStyle(PALETTE.fire).fillRoundedRect(cx - w / 2 + 3, cy + 33, Math.max(16, (w - 6) * p), 16, 8);
-      g.lineStyle(3, PALETTE.ink).strokeRoundedRect(cx - w / 2, cy + 30, w, 22, 11);
+      g.fillStyle(PALETTE.barBack).fillRoundedRect(cx - w / 2, cy + 30 * k, w, 22 * k, 11 * k);
+      g.fillStyle(PALETTE.fire).fillRoundedRect(cx - w / 2 + 3 * k, cy + 33 * k, Math.max(16 * k, (w - 6 * k) * p), 16 * k, 8 * k);
+      g.lineStyle(3 * k, PALETTE.ink).strokeRoundedRect(cx - w / 2, cy + 30 * k, w, 22 * k, 11 * k);
     };
     draw(0);
     this.load.on("progress", draw);

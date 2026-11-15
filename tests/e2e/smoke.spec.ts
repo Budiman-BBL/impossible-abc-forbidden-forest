@@ -41,9 +41,13 @@ test("launches without errors and the campfire loop runs", async ({ page }, info
   expect(s1.fuel).toBeLessThan(s0.fuel); // fire burns down
 
   // Tap the campfire (the camera starts centred on the main camp) -> one log goes in.
+  // The canvas fills the whole viewport (no letterbox).
   const box = (await canvas.boundingBox())!;
+  const vp = page.viewportSize()!;
+  expect(Math.abs(box.width - vp.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(box.height - vp.height)).toBeLessThanOrEqual(1);
   const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2 - (10 / 720) * box.height * 2;
+  const cy = box.y + box.height / 2;
   if (info.project.use.hasTouch) await page.touchscreen.tap(cx, cy);
   else await page.mouse.click(cx, cy);
   await expect.poll(async () => (await abc(page)).logs).toBe(4);
@@ -67,9 +71,16 @@ test("chopping a lit tree gives wood; fire out shows game over and restart works
   });
   await expect.poll(async () => (await abc(page)).out).toBe(true);
 
-  // "Main semula" button sits in the middle of the game-over panel (base 1280x720, y = 360 + 68).
+  // "Main semula" button: 68 design units below the centre of the game-over panel.
   const box = (await page.locator("#game canvas").boundingBox())!;
-  await page.mouse.click(box.x + box.width / 2, box.y + (428 / 720) * box.height);
+  const k = await page.evaluate(() => {
+    const g = (window as unknown as { __PHASER_GAME__: { scale: { width: number; height: number } } }).__PHASER_GAME__;
+    const dpr = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+    const { width: w, height: h } = g.scale;
+    const ui = Math.max(h / 720, 0.85 * dpr);
+    return Math.min(ui, (h * 0.9) / 280, (w * 0.9) / 540) / dpr;
+  });
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2 + 68 * k);
   await expect.poll(async () => {
     const s = await abc(page);
     return s.out === false && s.logs === 5;

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
-import { ATLAS, CHAR_WORLD_H_NISA, GAME_H, GAME_W, VERSION, WORLD_TO_SCREEN } from "../config";
+import { ATLAS, CHAR_WORLD_H_NISA, VERSION, WORLD_TO_SCREEN } from "../config";
+import { DESIGN_H, renderDpr } from "../ui/layout";
 import { CAMERA, CFG } from "../data/balance";
 import { CHARACTERS, characterById } from "../data/characters";
 import {
@@ -205,8 +206,9 @@ export class GameScene extends Phaser.Scene {
 
   // ---------- lighting ----------
   private buildLighting(): void {
+    const { width: w, height: h } = this.scale;
     this.dark = this.add
-      .renderTexture(GAME_W / 2, GAME_H / 2, GAME_W * DARK_LAYER_RES, GAME_H * DARK_LAYER_RES)
+      .renderTexture(w / 2, h / 2, Math.ceil(w * DARK_LAYER_RES), Math.ceil(h * DARK_LAYER_RES))
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(10000);
@@ -224,6 +226,7 @@ export class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const z = cam.zoom;
     // scrollFactor-0 objects are still zoomed around the camera centre; undo that.
+    this.dark.setPosition(cam.width / 2, cam.height / 2);
     this.dark.setScale(1 / (DARK_LAYER_RES * z));
     this.dark.clear();
     this.dark.fill(PALETTE.night, 0.93);
@@ -262,11 +265,28 @@ export class GameScene extends Phaser.Scene {
     cam.setBounds(0, 0, CFG.WORLD, CFG.WORLD);
     this.applyZoom(1);
     this.recenter();
+    this.scale.on("resize", this.onResize, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.onResize, this));
   }
 
+  /**
+   * Camera zoom = player zoom × 2 (v2 units → 720 px design height) × screen height / 720.
+   * So every screen shows the same world height (360 units at zoom 1) and wider screens
+   * simply show more forest to the sides; nothing is letterboxed.
+   */
   private applyZoom(z: number): void {
     this.userZoom = clamp(z, CAMERA.zoomMin, CAMERA.zoomMax);
-    this.cameras.main.setZoom(this.userZoom * WORLD_TO_SCREEN);
+    this.cameras.main.setZoom(this.userZoom * WORLD_TO_SCREEN * (this.scale.height / DESIGN_H));
+  }
+
+  private onResize(size: Phaser.Structs.Size): void {
+    const cam = this.cameras.main;
+    const mid = cam.midPoint.clone();
+    cam.setSize(size.width, size.height);
+    this.applyZoom(this.userZoom);
+    cam.centerOn(mid.x, mid.y);
+    this.dark.resize(Math.ceil(size.width * DARK_LAYER_RES), Math.ceil(size.height * DARK_LAYER_RES));
+    this.dark.setPosition(size.width / 2, size.height / 2);
   }
 
   recenter(): void {
@@ -296,7 +316,7 @@ export class GameScene extends Phaser.Scene {
       if (!p.isDown || !this.drag.down) return;
       const dx = p.x - this.drag.x;
       const dy = p.y - this.drag.y;
-      if (!this.drag.panned && Math.hypot(dx, dy) < 12) return;
+      if (!this.drag.panned && Math.hypot(dx, dy) < 12 * renderDpr()) return;
       this.drag.panned = true;
       cam.scrollX -= dx / cam.zoom;
       cam.scrollY -= dy / cam.zoom;
