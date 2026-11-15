@@ -1,0 +1,2062 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#07060a">
+  <meta name="format-detection" content="telephone=no">
+  <title>Kem Api Unggun</title>
+  <style>
+    :root {
+      --bg: #07060a;
+      --panel: rgba(18, 14, 10, 0.86);
+      --ink: #f3e6c8;
+      --muted: #c9b08a;
+      --accent: #ffb347;
+      --danger: #e24b3a;
+      --line: #3a2a18;
+      --gold: #c4a574;
+      --safe: env(safe-area-inset-top, 0px);
+      --safeb: env(safe-area-inset-bottom, 0px);
+      --safel: env(safe-area-inset-left, 0px);
+      --safer: env(safe-area-inset-right, 0px);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+      overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    #game {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      display: block; touch-action: none; background: #07060a;
+    }
+    .hide { display: none !important; }
+    #hud {
+      position: fixed; inset: 0; pointer-events: none;
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    #topbar, #bottombar, #banner, #toasts, #party, .screen, .btn {
+      pointer-events: auto;
+    }
+    #topbar {
+      padding: calc(8px + var(--safe)) 10px 8px;
+      padding-left: calc(10px + var(--safel));
+      padding-right: calc(10px + var(--safer));
+      background: linear-gradient(180deg, rgba(0,0,0,.72), rgba(0,0,0,.15) 85%, transparent);
+    }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .stat {
+      background: var(--panel); border: 2px solid var(--gold);
+      border-radius: 10px; padding: 5px 8px; min-height: 36px;
+      display: flex; flex-direction: column; justify-content: center;
+      box-shadow: 0 2px 0 #000;
+    }
+    .stat b { font-size: 14px; line-height: 1.1; }
+    .stat span { font-size: 10px; color: var(--muted); letter-spacing: .04em; }
+    #fuelBox { flex: 1; min-width: 0; }
+    #fuelTrack {
+      height: 12px; background: #1a120c; border: 2px solid #000; border-radius: 6px;
+      overflow: hidden; margin-top: 3px;
+    }
+    #fuelFill { height: 100%; width: 50%; background: linear-gradient(180deg,#ffc878,#e8891a); }
+    #fuelFill.low { background: linear-gradient(180deg,#ff8a7a,#c42a22); animation: pulse 0.8s ease-in-out infinite; }
+    @keyframes pulse { 50% { filter: brightness(1.3); } }
+    .iconbtn {
+      width: 40px; height: 40px; flex: 0 0 40px;
+      border: 2px solid var(--gold); border-radius: 10px;
+      background: var(--panel); color: var(--ink);
+      font-size: 16px; font-weight: 700; box-shadow: 0 2px 0 #000;
+    }
+    #party { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+    .pi {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid #000; background: var(--c, #888);
+      color: #fff; font-size: 8px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      text-shadow: 0 1px 1px #000;
+    }
+    .pi.locked { filter: grayscale(1) brightness(.4); }
+    .pi.dead { background: #3a2020 !important; color: #a66; }
+    .pi.danger { box-shadow: 0 0 0 2px #e24b3a; }
+    #toasts {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 6px 14px; pointer-events: none; align-items: center;
+    }
+    .toast {
+      background: rgba(10,8,6,.86); border: 2px solid var(--gold);
+      color: var(--ink); padding: 8px 12px; border-radius: 12px;
+      font-size: 13px; font-weight: 650; max-width: 92%;
+      text-align: center; box-shadow: 0 3px 0 #000;
+    }
+    #banner {
+      align-self: center; margin-top: 4px;
+      background: #3a2410; border: 2px solid var(--accent); color: var(--accent);
+      padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 13px;
+      box-shadow: 0 3px 0 #000; max-width: 92%; text-align: center;
+    }
+    #bottombar {
+      padding: 8px 10px calc(10px + var(--safeb));
+      padding-left: calc(10px + var(--safel));
+      padding-right: calc(10px + var(--safer));
+      background: linear-gradient(0deg, rgba(0,0,0,.78), rgba(0,0,0,.12) 80%, transparent);
+      display: flex; gap: 8px;
+    }
+    .act {
+      flex: 1; min-height: 52px; border-radius: 14px;
+      border: 2px solid var(--gold); background: #2a1c10;
+      color: var(--accent); font-weight: 800; font-size: 13px;
+      box-shadow: 0 3px 0 #000; padding: 6px 8px; line-height: 1.2;
+    }
+    .act:disabled { opacity: .4; color: #aaa; }
+    .act.hide { display: none; }
+    .screen {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: calc(24px + var(--safe)) 24px calc(24px + var(--safeb));
+      background: rgba(5,4,6,.72);
+    }
+    .card {
+      background: rgba(16,12,8,.92); border: 3px solid var(--gold);
+      border-radius: 18px; padding: 22px 20px 18px; max-width: 420px; width: 100%;
+      box-shadow: 0 8px 0 #000, 0 0 40px rgba(0,0,0,.5);
+    }
+    h1 { font-size: 28px; margin: 0 0 8px; color: var(--accent); letter-spacing: .04em; }
+    h2 { font-size: 22px; margin: 0 0 8px; color: var(--accent); }
+    .card p { margin: 0 0 16px; color: var(--muted); font-size: 14.5px; line-height: 1.45; }
+    .card ul { text-align: left; color: var(--ink); padding-left: 18px; margin: 0 0 16px; font-size: 13.5px; line-height: 1.5; }
+    .btn {
+      display: inline-block; min-width: 160px; min-height: 48px;
+      margin: 4px; padding: 12px 18px; border-radius: 14px;
+      border: 2px solid var(--gold); background: #3a2410; color: var(--accent);
+      font-weight: 800; font-size: 16px; box-shadow: 0 3px 0 #000;
+    }
+    .btn.ghost { background: transparent; color: var(--ink); }
+    #endStats { color: var(--ink); font-size: 14px; line-height: 1.55; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hide">
+    <div id="topbar">
+      <div class="row">
+        <div class="stat"><span>Kayu</span><b id="kayu">0</b></div>
+        <div class="stat" id="fuelBox">
+          <div class="row" style="justify-content:space-between">
+            <span>Bahan api</span><span id="fuelTxt">0/100</span>
+          </div>
+          <div id="fuelTrack"><div id="fuelFill"></div></div>
+        </div>
+        <div class="stat"><span id="malam">Malam 1</span><b id="timer">0:00</b></div>
+        <button class="iconbtn" id="btnCenter" type="button" title="Pusat kem">◎</button>
+        <button class="iconbtn" id="btnMute" type="button" title="Bunyi">Bunyi</button>
+        <button class="iconbtn" id="btnPause" type="button" title="Rehat">II</button>
+      </div>
+      <div class="row" style="margin-top:6px;gap:10px">
+        <span id="camps" style="font-size:12px;color:var(--muted)">Kem 1/3</span>
+        <span id="lv" style="font-size:12px;color:var(--muted)">Api Lv 1</span>
+      </div>
+      <div id="party"></div>
+    </div>
+    <div>
+      <div id="banner" class="hide"></div>
+      <div id="toasts"></div>
+    </div>
+    <div id="bottombar">
+      <button class="act" id="btnUp" type="button">Upgrade Api</button>
+      <button class="act" id="btnTorch" type="button">Hantar Obor</button>
+      <button class="act hide" id="btnMagic" type="button">Api Ajaib</button>
+    </div>
+  </div>
+
+  <div id="title" class="screen">
+    <div class="card">
+      <h1>Kem Api Unggun</h1>
+      <p>Kelas anda tersesat dalam hutan kampung pada waktu malam. Api unggun ialah nyawa anda. Jaga api, luaskan cahaya, dan hidupkan tiga kem sebelum gelap menelan semuanya.</p>
+      <button class="btn" id="btnStart" type="button">Mula Bermain</button>
+      <button class="btn ghost" id="btnHow" type="button">Cara Bermain</button>
+    </div>
+  </div>
+
+  <div id="help" class="screen hide">
+    <div class="card">
+      <h2>Cara bermain</h2>
+      <ul>
+        <li>Tap pokok untuk hantar pekerja tebang kayu.</li>
+        <li>Tap api unggun untuk masukkan kayu daripada stok.</li>
+        <li>Seret untuk gerakkan kamera. Cubit atau roda tetikus untuk zum.</li>
+        <li>Jangan biarkan sesiapa berdiri dalam gelap lebih daripada 4 saat.</li>
+        <li>Upgrade Api membesarkan cahaya dan membuka watak baru.</li>
+        <li>Hantar Obor: Hanan membawa cahaya ke tapak kem. Obor ada tempoh — kem yang jauh perlu disambung daripada kem yang sudah menyala.</li>
+        <li>Bila Asiya dan Safiya bersama, Api Ajaib boleh menyalakan kem dari jauh.</li>
+        <li>Anda menang bila 3 kem menyala. Anda kalah jika api utama padam atau Cikgu Nisa diambil.</li>
+      </ul>
+      <button class="btn" id="btnHelpClose" type="button">Tutup</button>
+    </div>
+  </div>
+
+  <div id="pause" class="screen hide">
+    <div class="card">
+      <h2>Rehat</h2>
+      <p>Hutan masih menunggu. Api masih menyala — buat masa ini.</p>
+      <button class="btn" id="btnResume" type="button">Sambung</button>
+      <button class="btn ghost" id="btnRestart" type="button">Main Semula</button>
+    </div>
+  </div>
+
+  <div id="end" class="screen hide">
+    <div class="card">
+      <h2 id="endTitle">Tamat</h2>
+      <p id="endMsg"></p>
+      <div id="endStats"></div>
+      <button class="btn" id="btnRestart2" type="button">Main Semula</button>
+      <button class="btn ghost" id="btnEndAgain" type="button">Ke Skrin Utama</button>
+    </div>
+  </div>
+
+  <script>
+"use strict";
+
+/* Kem Api Unggun v1 — single-file game logic (embedded in HTML)
+ * SPRITES hook: assign an HTMLImageElement to SPRITES[id] to replace the
+ * placeholder body. ids: nisa, afan, susp, kelabu, hanan, asiya, safiya
+ * Example later: const img = new Image(); img.src = "..."; SPRITES.nisa = img;
+ */
+const SPRITES = Object.create(null);
+function loadSprite(id, src) {
+  const im = new Image();
+  im.onload = () => { SPRITES[id] = im; };
+  im.src = src;
+}
+
+const HEADLESS = !!(typeof globalThis !== "undefined" && globalThis.__KEM_HEADLESS__);
+if (typeof CanvasRenderingContext2D !== "undefined" && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
+}
+
+
+const CFG = {
+  WORLD: 2400,
+  FUEL_MAX: 100,
+  FUEL_START: 82,
+  FUEL_DECAY: 1.15,
+  FUEL_DECAY_NIGHT: 0.18,
+  LOG_FUEL: 10,
+  LIGHT_MIN: 78,
+  LIGHT_MAX_BASE: 228,
+  LIGHT_MAX_GAIN: 38,
+  TORCH_R: 112,
+  TORCH_TIME: 9.8,
+  DARK_DEATH: 4,
+  WALK: 86,
+  CHOP: 3.8,
+  TREE_LOGS: 2,
+  TREE_RESPAWN: 52,
+  UPGRADE_COSTS: [12, 22, 22, 26, 30, 34],
+  MAGIC_COST: 6,
+  MAGIC_CD: 7,
+  NIGHT_LEN: 75,
+  BOAR_GRACE: 32,
+  CHAR_HP: 4,
+  NISA_HP: 5,
+  BOAR_HP: 4,
+  BOAR_SPD: 58,
+  GUARD_RANGE: 175,
+  GUARD_ATK: 36,
+  GUARD_CD: 0.55,
+};
+
+const CHAR_DEF = [
+  { id: "nisa", name: "Cikgu Nisa", role: "ketua", color: "#1f7a6e", accent: "#143f39" },
+  { id: "afan", name: "Afan", role: "pekerja", color: "#2c5fa8", accent: "#1a3a6e" },
+  { id: "susp", name: "Budak Suspender", role: "pekerja", color: "#efe4c4", accent: "#c43c3c" },
+  { id: "kelabu", name: "Budak Baju Kelabu", role: "pengawal", color: "#8a8e94", accent: "#4a4d52" },
+  { id: "hanan", name: "Hanan", role: "obor", color: "#e85a7a", accent: "#1aa78a" },
+  { id: "asiya", name: "Asiya", role: "kembar", color: "#3d7ad6", accent: "#f2d24a" },
+  { id: "safiya", name: "Safiya", role: "kembar", color: "#5b8fe0", accent: "#f7a0c0" },
+];
+
+const UNLOCK_ON_LEVEL = { 1: "kelabu", 2: "hanan", 3: "asiya", 4: "safiya" };
+
+function mulberry32(a) {
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const dist = (ax, ay, bx, by) => Math.hypot(bx - ax, by - ay);
+const ang = (ax, ay, bx, by) => Math.atan2(by - ay, bx - ax);
+
+// ---------- Audio (procedural, no assets) ----------
+const Aud = {
+  ctx: null,
+  muted: true,
+  ensure() {
+    if (this.ctx || HEADLESS) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+  },
+  unlock() {
+    this.ensure();
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+  },
+  beep(freq, dur, type, vol, slide) {
+    if (this.muted || HEADLESS) return;
+    this.ensure();
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type || "square";
+    o.frequency.setValueAtTime(freq, t0);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, slide), t0 + dur);
+    g.gain.setValueAtTime(vol || 0.05, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g);
+    g.connect(this.ctx.destination);
+    o.start(t0);
+    o.stop(t0 + dur + 0.02);
+  },
+  chop() { this.beep(160, 0.07, "square", 0.04, 90); },
+  feed() { this.beep(220, 0.12, "triangle", 0.05, 140); },
+  upg() { this.beep(330, 0.18, "triangle", 0.06, 520); },
+  hit() { this.beep(120, 0.1, "sawtooth", 0.05, 70); },
+  die() { this.beep(200, 0.4, "sawtooth", 0.06, 60); },
+  light() { this.beep(440, 0.25, "triangle", 0.06, 880); },
+  win() { this.beep(523, 0.2, "triangle", 0.06, 784); setTimeout(() => this.beep(659, 0.35, "triangle", 0.06, 1046), 180); },
+  lose() { this.beep(180, 0.5, "sawtooth", 0.06, 70); },
+  click() { this.beep(520, 0.04, "square", 0.03); },
+  boar() { this.beep(90, 0.22, "sawtooth", 0.05, 55); },
+};
+
+// ---------- State ----------
+const CAMPS_LAYOUT = [
+  { id: "utama", name: "Kem Utama", x: 900, y: 1650, main: true },
+  { id: "hilir", name: "Kem Hilir", x: 1480, y: 1200, main: false },
+  { id: "hulu", name: "Kem Hulu", x: 2000, y: 700, main: false },
+];
+
+let S = null;
+let groundPat = null;
+let lightCv = null, lightCtx = null;
+let cv, ctx;
+let viewW = 360, viewH = 640, dpr = 1;
+let mode = "title"; // title | play | paused | end
+let endKind = null;
+let targetMode = null; // null | torch | magic
+let toastQ = [];
+let hinted = {};
+let pointers = new Map();
+let drag = { active: false, panned: false, lx: 0, ly: 0, id: null };
+let pinchD = 0;
+let camUser = false;
+let shake = 0;
+let animT = 0;
+let ui = null;
+let followHanan = 0;
+let lastTs = 0;
+
+function toast(text, dur) {
+  toastQ.push({ text, t: dur || 3.2 });
+  if (toastQ.length > 3) toastQ.shift();
+}
+
+function decayMul() {
+  const nights = Math.floor(S.time / CFG.NIGHT_LEN);
+  const nisa = S.chars.nisa && S.chars.nisa.alive ? Math.pow(0.91, S.level) : 1;
+  return (1 + nights * (CFG.FUEL_DECAY_NIGHT / CFG.FUEL_DECAY)) * nisa;
+}
+
+function mainLightMax() {
+  return CFG.LIGHT_MAX_BASE + S.level * CFG.LIGHT_MAX_GAIN;
+}
+
+function mainLightR() {
+  const t = clamp(S.fuel / S.fuelMax, 0, 1);
+  return lerp(CFG.LIGHT_MIN, mainLightMax(), t);
+}
+
+function campLightR(camp) {
+  if (!camp.lit) return 0;
+  if (camp.main) return mainLightR();
+  return 150 + S.level * 8;
+}
+
+function lightsList() {
+  const L = [];
+  for (const c of S.camps) if (c.lit) L.push({ x: c.x, y: c.y, r: campLightR(c) });
+  const h = S.chars.hanan;
+  if (h && h.alive && h.unlocked && (h.state === "torch" || h.hasTorch)) {
+    L.push({ x: h.x, y: h.y, r: CFG.TORCH_R });
+  }
+  if (S.bolt) L.push({ x: S.bolt.x, y: S.bolt.y, r: 46 });
+  return L;
+}
+
+function lightAt(x, y) {
+  let best = 0;
+  for (const L of lightsList()) {
+    const d = dist(x, y, L.x, L.y);
+    if (d < L.r) best = Math.max(best, 1 - d / L.r);
+  }
+  return best;
+}
+
+function isLit(x, y) {
+  return lightAt(x, y) > 0.1;
+}
+
+function inCampLight(x, y) {
+  for (const c of S.camps) {
+    if (!c.lit) continue;
+    const r = campLightR(c);
+    if (r > 0 && dist(x, y, c.x, c.y) < r * 0.88) return true;
+  }
+  return false;
+}
+
+function nightIndex() {
+  return 1 + Math.floor((S ? S.time : 0) / CFG.NIGHT_LEN);
+}
+
+function upgradeCost() {
+  if (!S || S.level >= CFG.UPGRADE_COSTS.length) return null;
+  return CFG.UPGRADE_COSTS[S.level];
+}
+
+function twinsReady() {
+  const a = S.chars.asiya, b = S.chars.safiya;
+  return !!(a && b && a.unlocked && b.unlocked && a.alive && b.alive);
+}
+
+function fmtTime(t) {
+  const s = Math.floor(t);
+  const m = Math.floor(s / 60);
+  return m + ":" + String(s % 60).padStart(2, "0");
+}
+
+// ---------- World gen ----------
+function spawnChar(def, unlocked, ox, oy) {
+  return {
+    id: def.id,
+    name: def.name,
+    role: def.role,
+    color: def.color,
+    accent: def.accent,
+    x: ox,
+    y: oy,
+    facing: 1,
+    unlocked,
+    alive: true,
+    hp: def.id === "nisa" ? CFG.NISA_HP : CFG.CHAR_HP,
+    maxHp: def.id === "nisa" ? CFG.NISA_HP : CFG.CHAR_HP,
+    state: "idle",
+    dest: null,
+    tree: null,
+    carry: 0,
+    chopT: 0,
+    darkT: 0,
+    atkCd: 0,
+    hasTorch: false,
+    torchFuel: 0,
+    bob: Math.random() * 6,
+    patrolA: Math.random() * Math.PI * 2,
+  };
+}
+
+function newWorld(seed) {
+  const rng = mulberry32(seed == null ? (Date.now() & 0xffff) ^ 0x9e37 : seed);
+  const camps = CAMPS_LAYOUT.map((c) => ({
+    id: c.id,
+    name: c.name,
+    x: c.x,
+    y: c.y,
+    main: c.main,
+    lit: !!c.main,
+  }));
+  const trees = [];
+  function tryTree(x, y, minCamp) {
+    if (x < 70 || y < 70 || x > CFG.WORLD - 70 || y > CFG.WORLD - 70) return false;
+    for (const c of camps) if (dist(x, y, c.x, c.y) < (minCamp || 96)) return false;
+    for (const t of trees) if (dist(x, y, t.x, t.y) < 50) return false;
+    trees.push({
+      x, y,
+      logs: CFG.TREE_LOGS,
+      maxLogs: CFG.TREE_LOGS,
+      respawn: 0,
+      claimed: null,
+      sway: rng() * 6,
+      kind: rng() < 0.25 ? 1 : 0,
+    });
+    return true;
+  }
+  function ring(cx, cy, n, r0, r1, minCamp) {
+    let g = 0;
+    while (n > 0 && g++ < 3000) {
+      const a = rng() * Math.PI * 2;
+      const r = r0 + rng() * (r1 - r0);
+      if (tryTree(cx + Math.cos(a) * r, cy + Math.sin(a) * r, minCamp)) n--;
+    }
+  }
+  ring(camps[0].x, camps[0].y, 28, 102, 148, 98);
+  ring(camps[0].x, camps[0].y, 12, 155, 210, 98);
+  ring(camps[1].x, camps[1].y, 10, 88, 170, 80);
+  ring(camps[2].x, camps[2].y, 10, 88, 170, 80);
+  let g2 = 0;
+  while (trees.length < 64 && g2++ < 3000) {
+    tryTree(80 + rng() * (CFG.WORLD - 160), 80 + rng() * (CFG.WORLD - 160), 130);
+  }
+  const eyes = [];
+  for (let i = 0; i < 36; i++) {
+    eyes.push({
+      x: rng() * CFG.WORLD,
+      y: rng() * CFG.WORLD,
+      ph: rng() * 6,
+      vx: (rng() - 0.5) * 14,
+      vy: (rng() - 0.5) * 14,
+    });
+  }
+  const chars = {};
+  const main = camps[0];
+  CHAR_DEF.forEach((d, i) => {
+    const a = -0.4 + i * 0.55;
+    const r = d.role === "ketua" ? 28 : 54;
+    chars[d.id] = spawnChar(d, i < 3, main.x + Math.cos(a) * r, main.y + Math.sin(a) * r + 8);
+  });
+  S = {
+    time: 0,
+    fuel: CFG.FUEL_START,
+    fuelMax: CFG.FUEL_MAX,
+    logs: 5,
+    level: 0,
+    camps,
+    trees,
+    eyes,
+    chars,
+    boars: [],
+    fx: [],
+    bolts: [],
+    jobs: [],
+    boarT: CFG.BOAR_GRACE,
+    magicCd: 0,
+    stats: { kayu: 0, fed: 0, boars: 0, lost: 0 },
+    lowWarned: false,
+    cam: { x: main.x, y: main.y, z: 1 },
+  };
+  shake = 0;
+  targetMode = null;
+  followHanan = 0;
+  camUser = false;
+  toastQ = [];
+  hinted = {};
+}
+
+function startGame() {
+  newWorld();
+  mode = "play";
+  endKind = null;
+  toast("Tap pokok untuk tebang kayu.");
+  hinted.tree = true;
+}
+
+function restartPlay() {
+  startGame();
+}
+
+// ---------- Movement / combat helpers ----------
+function moveTowards(o, tx, ty, spd, dt) {
+  const d = dist(o.x, o.y, tx, ty);
+  if (d < 1.2) { o.x = tx; o.y = ty; return true; }
+  const step = Math.min(d, spd * dt);
+  o.x += ((tx - o.x) / d) * step;
+  o.y += ((ty - o.y) / d) * step;
+  o.facing = tx >= o.x ? 1 : -1;
+  return d <= spd * dt + 1.5;
+}
+
+function depositPt() {
+  const m = S.camps[0];
+  return { x: m.x + 26, y: m.y + 22 };
+}
+
+function nisaSpot() {
+  const m = S.camps[0];
+  return { x: m.x - 6, y: m.y + 16 };
+}
+
+function living(role) {
+  return Object.values(S.chars).filter((c) => c.unlocked && c.alive && (!role || c.role === role));
+}
+
+function hurt(ch, n, src) {
+  if (!ch.alive) return;
+  ch.hp -= n;
+  ch._hurt = 2.8;
+  puff(ch.x, ch.y - 18, "Aduh!", "#ffb0a0");
+  Aud.hit();
+  shake = Math.max(shake, 0.25);
+  if (ch.hp <= 0) {
+    ch.hp = 0;
+    ch.alive = false;
+    ch.state = "dead";
+    ch.carry = 0;
+    if (ch.tree) { ch.tree.claimed = null; ch.tree = null; }
+    S.stats.lost++;
+    Aud.die();
+    toast(ch.name + " telah diambil!");
+    if (ch.id === "nisa") endGame("lose", "Cikgu Nisa telah diambil! Kelas hilang harapan.");
+  }
+}
+
+function endGame(kind, msg) {
+  if (mode === "end") return;
+  mode = "end";
+  endKind = kind;
+  S.endMsg = msg;
+  if (kind === "win") Aud.win();
+  else Aud.lose();
+  syncUI();
+}
+
+function puff(x, y, txt, col) {
+  S.fx.push({ x, y, txt, col: col || "#ffe08a", t: 1.15, vy: -22 });
+}
+
+function checkWin() {
+  if (S.camps.every((c) => c.lit)) {
+    endGame("win", "Hutan dah terang! Anda menang!");
+  }
+}
+
+function lightCamp(camp) {
+  if (camp.lit) return;
+  camp.lit = true;
+  Aud.light();
+  puff(camp.x, camp.y - 30, camp.name + " menyala!", "#ffe08a");
+  toast(camp.name + " sudah menyala!");
+  checkWin();
+}
+
+function nearestIdleWorker(tx, ty) {
+  let best = null, bd = 1e9;
+  for (const c of living("pekerja")) {
+    if (c.state !== "idle") continue;
+    const d = dist(c.x, c.y, tx, ty);
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+
+function assignTree(tree) {
+  if (!tree || tree.logs <= 0) return false;
+  if (tree.claimed) return false;
+  const w = nearestIdleWorker(tree.x, tree.y);
+  if (!w) {
+    if (S.jobs.length < 10 && !S.jobs.includes(tree)) S.jobs.push(tree);
+    toast("Semua pekerja sibuk.");
+    return false;
+  }
+  tree.claimed = w.id;
+  w.tree = tree;
+  w.state = "walk";
+  w.dest = { x: tree.x, y: tree.y + 16 };
+  if (lightAt(tree.x, tree.y) < 0.16) toast("Pokok itu dalam gelap — berbahaya!");
+  return true;
+}
+
+function popJob(w) {
+  while (S.jobs.length) {
+    const t = S.jobs.shift();
+    if (t.logs > 0 && !t.claimed) {
+      t.claimed = w.id;
+      w.tree = t;
+      w.state = "walk";
+      w.dest = { x: t.x, y: t.y + 16 };
+      return true;
+    }
+  }
+  return false;
+}
+
+function feedFire(n) {
+  n = n == null ? 1 : n;
+  if (S.logs <= 0) { toast("Tiada kayu. Tebang pokok dulu."); return false; }
+  if (S.fuel >= S.fuelMax - 0.5) { toast("Api sudah penuh."); return false; }
+  let used = 0;
+  while (used < n && S.logs > 0 && S.fuel < S.fuelMax) {
+    S.logs--;
+    S.fuel = Math.min(S.fuelMax, S.fuel + CFG.LOG_FUEL);
+    S.stats.fed++;
+    used++;
+  }
+  if (used) {
+    Aud.feed();
+    const m = S.camps[0];
+    puff(m.x + 8, m.y - 24, "+" + used + " kayu", "#ffc878");
+    if (!hinted.feedOk) { hinted.feedOk = true; }
+  }
+  return used > 0;
+}
+
+function doUpgrade() {
+  const cost = upgradeCost();
+  if (cost == null) { toast("Api sudah di tahap maksimum."); return; }
+  if (S.logs < cost) { toast("Perlu " + cost + " kayu untuk naik taraf."); return; }
+  S.logs -= cost;
+  S.level++;
+  S.fuelMax = CFG.FUEL_MAX + S.level * 8;
+  S.fuel = Math.min(S.fuelMax, S.fuel + 14);
+  Aud.upg();
+  const id = UNLOCK_ON_LEVEL[S.level];
+  if (id && S.chars[id] && !S.chars[id].unlocked) {
+    const ch = S.chars[id];
+    ch.unlocked = true;
+    ch.x = S.camps[0].x + 20;
+    ch.y = S.camps[0].y + 40;
+    puff(ch.x, ch.y - 20, ch.name + " datang!", "#cfe8ff");
+    toast(ch.name + " sertai kem anda!");
+    if (id === "kelabu") toast("Pengawal akan lindungi kem daripada babi hutan.");
+    if (id === "hanan") toast("Guna Hantar Obor untuk bawa cahaya ke tapak kem.");
+    if (id === "safiya") toast("Kembar lengkap! Api Ajaib sudah boleh digunakan.");
+  } else {
+    toast("Cahaya api semakin luas. Cikgu Nisa merestui kem.");
+  }
+  syncUI();
+}
+
+function sendTorchTo(x, y) {
+  const h = S.chars.hanan;
+  if (!h || !h.unlocked || !h.alive) { toast("Hanan belum ada di kem."); return; }
+  let tx = x, ty = y;
+  for (const c of S.camps) {
+    if (!c.main && dist(x, y, c.x, c.y) < 80) { tx = c.x; ty = c.y + 18; }
+  }
+  h.state = "torch";
+  h.hasTorch = true;
+  h.torchFuel = CFG.TORCH_TIME;
+  h.dest = { x: tx, y: ty };
+  h.tree = null;
+  followHanan = 2.8;
+  camUser = false;
+  toast("Hanan membawa obor. Jaga dia daripada babi hutan.");
+  targetMode = null;
+  syncUI();
+}
+
+function callHananHome() {
+  const h = S.chars.hanan;
+  if (!h || !h.alive) return;
+  h.state = "torch";
+  h.hasTorch = true;
+  if (h.torchFuel <= 0) h.torchFuel = CFG.TORCH_TIME;
+  const p = depositPt();
+  h.dest = { x: p.x + 20, y: p.y + 10 };
+  h._comingHome = true;
+  toast("Hanan pulang ke kem utama.");
+  targetMode = null;
+  syncUI();
+}
+
+function shootMagic(camp) {
+  if (!twinsReady()) { toast("Api Ajaib hanya boleh digunakan bila Asiya dan Safiya bersama."); return; }
+  if (S.magicCd > 0) { toast("Api Ajaib masih meresap..."); return; }
+  if (S.logs < CFG.MAGIC_COST) { toast("Api Ajaib perlu " + CFG.MAGIC_COST + " kayu."); return; }
+  if (!camp || camp.lit) { toast("Pilih tapak kem yang belum menyala."); return; }
+  S.logs -= CFG.MAGIC_COST;
+  S.magicCd = CFG.MAGIC_CD;
+  const a = S.chars.asiya, b = S.chars.safiya;
+  a.state = "cast"; a.chopT = 0.8;
+  b.state = "cast"; b.chopT = 0.8;
+  S.bolts.push({
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2 - 10,
+    tx: camp.x,
+    ty: camp.y,
+    camp,
+    p: 0,
+  });
+  Aud.light();
+  targetMode = null;
+  toast("Kembar melepaskan Api Ajaib!");
+  syncUI();
+}
+
+function spawnBoar() {
+  const targets = living();
+  if (!targets.length) return;
+  const field = targets.find((ch) => ch.id === "hanan" && ch.hasTorch && !inCampLight(ch.x, ch.y));
+  const pool = targets.filter((ch) => ch.id !== "nisa");
+  const pick = pool.length ? pool : targets;
+  const t = (field && Math.random() < 0.6) ? field : pick[(Math.random() * pick.length) | 0];
+  let ang0 = ang(S.camps[0].x, S.camps[0].y, t.x, t.y) + (Math.random() - 0.5);
+  let x, y, tries = 0;
+  do {
+    const r = mainLightR() + 160 + Math.random() * 90;
+    const a = ang0 + (tries * 0.7);
+    x = t.x + Math.cos(a) * r;
+    y = t.y + Math.sin(a) * r;
+    tries++;
+  } while (isLit(x, y) && tries < 8);
+  x = clamp(x, 40, CFG.WORLD - 40);
+  y = clamp(y, 40, CFG.WORLD - 40);
+  const nights = nightIndex();
+  S.boars.push({
+    x, y,
+    hp: CFG.BOAR_HP + (nights >= 4 ? 1 : 0),
+    maxHp: CFG.BOAR_HP + (nights >= 4 ? 1 : 0),
+    spd: CFG.BOAR_SPD + nights * 3.5,
+    cd: 0,
+    targetId: t.id,
+    bob: Math.random() * 5,
+  });
+  Aud.boar();
+  if (!hinted.boar) { hinted.boar = true; toast("Babi hutan datang dari gelap!"); }
+}
+
+// ---------- Update ----------
+function updateEyes(dt) {
+  if (!S) return;
+  for (const e of S.eyes) {
+    e.x += e.vx * dt;
+    e.y += e.vy * dt;
+    if (Math.random() < 0.012) {
+      e.vx = (Math.random() - 0.5) * 16;
+      e.vy = (Math.random() - 0.5) * 16;
+    }
+    if (isLit(e.x, e.y)) {
+      const a = ang(S.camps[0].x, S.camps[0].y, e.x, e.y);
+      e.x += Math.cos(a) * 40 * dt;
+      e.y += Math.sin(a) * 40 * dt;
+    }
+    if (e.x < 20 || e.x > CFG.WORLD - 20) e.vx *= -1;
+    if (e.y < 20 || e.y > CFG.WORLD - 20) e.vy *= -1;
+    e.x = clamp(e.x, 10, CFG.WORLD - 10);
+    e.y = clamp(e.y, 10, CFG.WORLD - 10);
+  }
+}
+
+function updateTrees(dt) {
+  for (const t of S.trees) {
+    if (t.logs <= 0) {
+      t.respawn += dt;
+      if (t.respawn >= CFG.TREE_RESPAWN) {
+        t.logs = t.maxLogs;
+        t.respawn = 0;
+        t.claimed = null;
+      }
+    }
+  }
+}
+
+function updateWorker(c, dt) {
+  const threat = S.boars.find((b) => b.hp > 0 && dist(c.x, c.y, b.x, b.y) < 50);
+  if (threat || (c._hurt && c._hurt > 0)) {
+    if (c.state !== "return") {
+      if (c.tree) { c.tree.claimed = null; c.tree = null; }
+      c.state = "return";
+      c.dest = depositPt();
+    }
+  }
+  if (c.state === "walk" && c.dest) {
+    if (c.tree && c.tree.logs <= 0) {
+      c.tree.claimed = null;
+      c.tree = null;
+      c.state = c.carry ? "return" : "idle";
+      c.dest = c.carry ? depositPt() : null;
+      if (c.state === "idle") popJob(c);
+      return;
+    }
+    if (moveTowards(c, c.dest.x, c.dest.y, CFG.WALK, dt)) {
+      if (c.tree && c.tree.logs > 0) { c.state = "chop"; c.chopT = 0; }
+      else { c.state = "idle"; c.dest = null; }
+    }
+  } else if (c.state === "chop" || c.state === "kindle") {
+    const bonus = Math.pow(0.94, S.level);
+    c.chopT += dt / (CFG.CHOP * bonus);
+    if (Math.random() < dt * 3) Aud.chop();
+    if (c.chopT >= 1) {
+      c.chopT = 0;
+      if (c.tree && c.tree.logs > 0) {
+        c.tree.logs--;
+        c.carry++;
+        S.stats.kayu++;
+        puff(c.x, c.y - 20, "+1", "#e6c388");
+      }
+      if (!c.tree || c.tree.logs <= 0 || c.carry >= 1) {
+        if (c.tree && c.tree.logs <= 0) c.tree.claimed = null;
+        if (c.tree && c.tree.logs > 0) c.tree.claimed = null;
+        c.tree = null;
+        c.state = "return";
+        c.dest = depositPt();
+      }
+    }
+  } else if (c.state === "return") {
+    const p = depositPt();
+    if (moveTowards(c, p.x, p.y, CFG.WALK, dt)) {
+      if (c.carry) {
+        S.logs += c.carry;
+        puff(p.x, p.y - 18, "+" + c.carry + " stok", "#ffe08a");
+        c.carry = 0;
+        if (!hinted.feed && S.logs >= 1) {
+          hinted.feed = true;
+          toast("Tap api unggun untuk masukkan kayu.");
+        }
+      }
+      c.state = "idle";
+      c.dest = null;
+      popJob(c);
+    }
+  } else {
+    // wander slightly near home
+    const p = depositPt();
+    if (dist(c.x, c.y, p.x, p.y) > 70) moveTowards(c, p.x + 20, p.y + 16, CFG.WALK * 0.5, dt);
+  }
+}
+
+function updateGuard(c, dt) {
+  c.atkCd -= dt;
+  if (lightAt(c.x, c.y) < 0.22) {
+    const m = S.camps[0];
+    moveTowards(c, m.x, m.y + 40, CFG.WALK + 14, dt);
+    c.state = "retreat";
+    return;
+  }
+  const boar = S.boars.filter((b) => b.hp > 0 && lightAt(b.x, b.y) > 0.1)
+    .sort((a, b) => dist(c.x, c.y, a.x, a.y) - dist(c.x, c.y, b.x, b.y))[0];
+  if (boar && dist(c.x, c.y, boar.x, boar.y) < CFG.GUARD_RANGE) {
+    if (dist(c.x, c.y, boar.x, boar.y) > CFG.GUARD_ATK) {
+      moveTowards(c, boar.x, boar.y, CFG.WALK + 8, dt);
+      c.state = "chase";
+    } else {
+      c.state = "attack";
+      if (c.atkCd <= 0) {
+        boar.hp--;
+        c.atkCd = CFG.GUARD_CD;
+        puff(boar.x, boar.y - 14, "Pap!", "#eee");
+        Aud.hit();
+        const a = ang(c.x, c.y, boar.x, boar.y);
+        boar.x += Math.cos(a) * 10;
+        boar.y += Math.sin(a) * 10;
+        if (boar.hp <= 0) {
+          puff(boar.x, boar.y, "Tumbang", "#d8c4a0");
+          S.stats.boars++;
+        }
+      }
+    }
+  } else {
+    c.state = "patrol";
+    c.patrolA += dt * 0.7;
+    const m = S.camps[0];
+    const tx = m.x + Math.cos(c.patrolA) * 78;
+    const ty = m.y + Math.sin(c.patrolA) * 78;
+    moveTowards(c, tx, ty, CFG.WALK * 0.7, dt);
+  }
+}
+
+function updateHanan(c, dt) {
+  if (inCampLight(c.x, c.y)) {
+    c.torchFuel = CFG.TORCH_TIME;
+  } else if (c.hasTorch && c.state !== "kindle") {
+    c.torchFuel -= dt;
+    if (c.torchFuel <= 2.2 && !c._torchWarn) {
+      c._torchWarn = true;
+      toast("Obor Hanan semakin malap!");
+    }
+    if (c.torchFuel <= 0) {
+      c.torchFuel = 0;
+      c.hasTorch = false;
+      toast("Obor padam! Hanan mesti balik ke cahaya.");
+    }
+  }
+  if (!c.hasTorch) c._torchWarn = false;
+
+  if (c.state === "kindle" && c._kindleCamp) {
+    c.chopT -= dt;
+    if (!c.hasTorch) {
+      c.state = "idle";
+      c._kindleCamp = null;
+      toast("Obor padam sebelum kem sempat menyala.");
+    } else if (c.chopT <= 0) {
+      lightCamp(c._kindleCamp);
+      c._kindleCamp = null;
+      c.state = "idle";
+      c.hasTorch = false;
+    }
+  } else if (c.state === "torch" && c.dest) {
+    if (moveTowards(c, c.dest.x, c.dest.y, CFG.WALK * 0.92, dt)) {
+      let camp = null;
+      for (const k of S.camps) {
+        if (!k.lit && dist(c.x, c.y, k.x, k.y) < 48) camp = k;
+      }
+      c.dest = null;
+      c._comingHome = false;
+      if (camp && c.hasTorch) {
+        c.state = "kindle";
+        c._kindleCamp = camp;
+        c.chopT = 5;
+        toast("Hanan menyalakan " + camp.name + "...");
+      } else {
+        if (camp && !c.hasTorch) toast("Obor sudah padam — kem tidak dapat dinyalakan.");
+        c.state = "idle";
+        if (inCampLight(c.x, c.y)) c.hasTorch = false;
+      }
+    }
+  } else {
+    if (inCampLight(c.x, c.y)) c.hasTorch = false;
+    const home = nearestLitCamp(c.x, c.y);
+    if (!c.hasTorch && !inCampLight(c.x, c.y) && home) {
+      moveTowards(c, home.x, home.y + 18, CFG.WALK, dt);
+    }
+    c.state = "idle";
+  }
+}
+
+function nearestLitCamp(x, y) {
+  let best = null, bd = 1e9;
+  for (const camp of S.camps) if (camp.lit) {
+    const d = dist(x, y, camp.x, camp.y);
+    if (d < bd) { bd = d; best = camp; }
+  }
+  return best;
+}
+
+function updateChars(dt) {
+  for (const c of Object.values(S.chars)) {
+    if (!c.unlocked || !c.alive) continue;
+    c.bob += dt * (c.state === "idle" ? 2 : 8);
+    if (c.role === "ketua") {
+      const p = nisaSpot();
+      moveTowards(c, p.x, p.y, 30, dt);
+      c.state = "idle";
+    } else if (c.role === "pekerja") updateWorker(c, dt);
+    else if (c.role === "pengawal") updateGuard(c, dt);
+    else if (c.role === "obor") updateHanan(c, dt);
+    else {
+      if (c.state === "cast") {
+        c.chopT -= dt;
+        if (c.chopT <= 0) c.state = "idle";
+      } else {
+        const i = c.id === "asiya" ? -1 : 1;
+        const p = { x: S.camps[0].x + i * 36, y: S.camps[0].y + 48 };
+        if (dist(c.x, c.y, p.x, p.y) > 12) moveTowards(c, p.x, p.y, 40, dt);
+      }
+    }
+    if (isLit(c.x, c.y) || (c.role === "obor" && c.hasTorch)) {
+      c.darkT = Math.max(0, c.darkT - dt * 2.4);
+    } else {
+      c.darkT += dt;
+      if (c.darkT > 2 && !c._darkWarn) {
+        c._darkWarn = true;
+        toast(c.name + " terlalu jauh dari cahaya!");
+      }
+      if (c.darkT >= CFG.DARK_DEATH) {
+        hurt(c, 99);
+        toast(c.name + " ditelan gelap.");
+      }
+    }
+    if (isLit(c.x, c.y)) c._darkWarn = false;
+    if (c._hurt > 0) c._hurt -= dt;
+    if (inCampLight(c.x, c.y) && c.hp < c.maxHp) {
+      c._regen = (c._regen || 0) + dt;
+      if (c._regen >= 3.2) { c.hp = Math.min(c.maxHp, c.hp + 1); c._regen = 0; }
+    } else c._regen = 0;
+  }
+}
+
+function updateBoars(dt) {
+  const nights = nightIndex();
+  S.boarT -= dt;
+  const interval = Math.max(7.5, 19 - nights * 2.2);
+  const burst = nights >= 3 && Math.random() < 0.28 ? 2 : 1;
+  if (S.boarT <= 0) {
+    S.boarT = interval;
+    for (let i = 0; i < burst; i++) spawnBoar();
+  }
+  for (const b of S.boars) {
+    if (b.hp <= 0) continue;
+    b.bob += dt * 10;
+    b.cd -= dt;
+    let t = S.chars[b.targetId];
+    if (!t || !t.alive || !t.unlocked) {
+      const al = living();
+      const pref = al.filter((ch) => ch.id !== "nisa");
+      const pool = pref.length ? pref : al;
+      t = pool.sort((p, q) => dist(b.x, b.y, p.x, p.y) - dist(b.x, b.y, q.x, q.y))[0];
+      if (t) b.targetId = t.id;
+    }
+    if (!t) continue;
+    const la = lightAt(b.x, b.y);
+    const early = nightIndex() === 1 && la > 0.45 ? 0.42 : 1;
+    const slow = (la > 0.16 ? 0.8 : 1) * early;
+    const hearth = S.camps[0];
+    if (dist(b.x, b.y, hearth.x, hearth.y) < 34) {
+      const a = ang(hearth.x, hearth.y, b.x, b.y);
+      b.x += Math.cos(a) * 40 * dt;
+      b.y += Math.sin(a) * 40 * dt;
+    }
+    if (dist(b.x, b.y, t.x, t.y) > 20) {
+      moveTowards(b, t.x, t.y, b.spd * slow, dt);
+    } else if (b.cd <= 0 && dist(t.x, t.y, hearth.x, hearth.y) > 30) {
+      hurt(t, 1, b);
+      b.cd = 1.15;
+      const a = ang(b.x, b.y, t.x, t.y);
+      t.x += Math.cos(a) * 12;
+      t.y += Math.sin(a) * 12;
+    }
+  }
+  S.boars = S.boars.filter((b) => b.hp > 0);
+}
+
+function updateBolts(dt) {
+  for (const b of S.bolts) {
+    b.p += dt / 1.15;
+    const p = clamp(b.p, 0, 1);
+    const jump = Math.sin(p * Math.PI) * 90;
+    // store drawn pos
+    const ox = b.x0 == null ? (b.x0 = b.x) : b.x0;
+    const oy = b.y0 == null ? (b.y0 = b.y) : b.y0;
+    b.x = lerp(ox, b.tx, p);
+    b.y = lerp(oy, b.ty, p) - jump;
+    if (b.p >= 1) {
+      lightCamp(b.camp);
+      b.dead = true;
+    }
+  }
+  S.bolts = S.bolts.filter((b) => !b.dead);
+}
+
+function updateFx(dt) {
+  for (const f of S.fx) {
+    f.t -= dt;
+    f.y += (f.vy || -20) * dt;
+  }
+  S.fx = S.fx.filter((f) => f.t > 0);
+  for (const t of toastQ) t.t -= dt;
+  toastQ = toastQ.filter((t) => t.t > 0);
+  S.magicCd = Math.max(0, S.magicCd - dt);
+  shake = Math.max(0, shake - dt);
+  if (followHanan > 0) followHanan -= dt;
+}
+
+function updateCamera(dt) {
+  const cam = S.cam;
+  if (!camUser && followHanan > 0 && S.chars.hanan && S.chars.hanan.hasTorch) {
+    const h = S.chars.hanan;
+    cam.x = lerp(cam.x, h.x, 1 - Math.pow(0.001, dt));
+    cam.y = lerp(cam.y, h.y, 1 - Math.pow(0.001, dt));
+  }
+  const marginX = (viewW / cam.z) * 0.45;
+  const marginY = (viewH / cam.z) * 0.4;
+  cam.x = clamp(cam.x, marginX, CFG.WORLD - marginX);
+  cam.y = clamp(cam.y, marginY, CFG.WORLD - marginY);
+}
+
+function update(dt) {
+  animT += dt;
+  if (!S) return;
+  updateEyes(dt);
+  updateFx(dt);
+  updateCamera(dt);
+  if (mode !== "play") return;
+  S.time += dt;
+  const dec = CFG.FUEL_DECAY * decayMul() * dt;
+  S.fuel = Math.max(0, S.fuel - dec);
+  if (S.fuel <= 0) {
+    S.fuel = 0;
+    endGame("lose", "Api padam!");
+    return;
+  }
+  if (S.fuel / S.fuelMax < 0.28 && !S.lowWarned) {
+    S.lowWarned = true;
+    toast("Api semakin kecil! Masukkan kayu!");
+  }
+  if (S.fuel / S.fuelMax > 0.4) S.lowWarned = false;
+  updateTrees(dt);
+  updateChars(dt);
+  updateBoars(dt);
+  updateBolts(dt);
+  if (!hinted.dark && S.time > 8) {
+    hinted.dark = true;
+    toast("Jangan biarkan sesiapa berdiri dalam gelap terlalu lama.");
+  }
+}
+
+// ---------- Input / camera math ----------
+function screenToWorld(sx, sy) {
+  const cam = S.cam;
+  return {
+    x: cam.x + (sx - viewW / 2) / cam.z,
+    y: cam.y + (sy - viewH / 2) / cam.z,
+  };
+}
+function worldToScreen(x, y) {
+  const cam = S.cam;
+  return {
+    x: viewW / 2 + (x - cam.x) * cam.z,
+    y: viewH / 2 + (y - cam.y) * cam.z,
+  };
+}
+
+function zoomAt(sx, sy, nz) {
+  const before = screenToWorld(sx, sy);
+  S.cam.z = clamp(nz, 0.55, 1.6);
+  const after = screenToWorld(sx, sy);
+  S.cam.x += before.x - after.x;
+  S.cam.y += before.y - after.y;
+}
+
+function hitTree(x, y) {
+  let best = null, bd = 28;
+  for (const t of S.trees) {
+    if (t.logs <= 0) continue;
+    const d = dist(x, y, t.x, t.y - 8);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return best;
+}
+
+function hitCamp(x, y, r) {
+  r = r || 42;
+  let best = null, bd = r;
+  for (const c of S.camps) {
+    const d = dist(x, y, c.x, c.y);
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+
+function onWorldTap(x, y) {
+  if (mode !== "play") return;
+  if (targetMode === "torch") { sendTorchTo(x, y); return; }
+  if (targetMode === "magic") {
+    const camp = hitCamp(x, y, 90);
+    shootMagic(camp && !camp.main ? camp : S.camps.find((c) => !c.lit));
+    return;
+  }
+  const camp = hitCamp(x, y, 40);
+  if (camp && camp.main) { feedFire(1); return; }
+  const tree = hitTree(x, y);
+  if (tree) { assignTree(tree); return; }
+}
+
+// ---------- Render ----------
+function makeGround() {
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 256;
+  const g = c.getContext("2d");
+  g.fillStyle = "#16140f";
+  g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 1200; i++) {
+    const x = Math.random() * 256, y = Math.random() * 256;
+    g.fillStyle = Math.random() < 0.5 ? "#1b1a12" : "#12110c";
+    g.globalAlpha = 0.55;
+    g.fillRect(x, y, 2 + Math.random() * 3, 1 + Math.random() * 2);
+  }
+  g.globalAlpha = 1;
+  for (let i = 0; i < 80; i++) {
+    g.strokeStyle = "rgba(50,70,30,0.25)";
+    g.lineWidth = 1;
+    const x = Math.random() * 256, y = Math.random() * 256;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + 3, y - 5);
+    g.stroke();
+  }
+  groundPat = ctx.createPattern(c, "repeat");
+}
+
+function strokeFill(pathFn, fill, sw) {
+  ctx.beginPath();
+  pathFn();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.lineWidth = sw == null ? 3 : sw;
+  ctx.strokeStyle = "#0a0806";
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.stroke();
+}
+
+function drawGround() {
+  ctx.save();
+  const cam = S.cam;
+  ctx.translate(viewW / 2, viewH / 2);
+  ctx.scale(cam.z, cam.z);
+  ctx.translate(-cam.x, -cam.y);
+  if (groundPat) {
+    ctx.fillStyle = groundPat;
+    ctx.fillRect(0, 0, CFG.WORLD, CFG.WORLD);
+  } else {
+    ctx.fillStyle = "#16140f";
+    ctx.fillRect(0, 0, CFG.WORLD, CFG.WORLD);
+  }
+  // camp clearings
+  for (const c of S.camps) {
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.main ? 92 : 70, 0, Math.PI * 2);
+    ctx.fillStyle = c.lit ? "rgba(70,50,20,0.35)" : "rgba(30,28,24,0.45)";
+    ctx.fill();
+    if (c.main) {
+      // stones
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + 0.2;
+        ctx.beginPath();
+        ctx.ellipse(c.x + Math.cos(a) * 22, c.y + Math.sin(a) * 16 + 6, 6, 4, a, 0, 7);
+        ctx.fillStyle = "#3a3a36";
+        ctx.fill();
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    } else if (!c.lit) {
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = "rgba(220,180,120,0.55)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 26, 0, 7);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  ctx.restore();
+}
+
+function drawTree(t) {
+  if (t.logs <= 0) {
+    ctx.fillStyle = "#3a2a18";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(t.x, t.y + 4, 7, 4, 0, 0, 7);
+    ctx.fill(); ctx.stroke();
+    return;
+  }
+  const sw = Math.sin(animT * 0.8 + t.sway) * 2;
+  ctx.fillStyle = "#3b2412";
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.rect(t.x - 4, t.y - 6, 8, 16);
+  ctx.fill(); ctx.stroke();
+  const layers = t.kind ? [[0, -36, 16], [2, -22, 18], [0, -8, 17]] : [[0, -32, 18], [0, -16, 20]];
+  for (const [dx, dy, r] of layers) {
+    ctx.beginPath();
+    ctx.moveTo(t.x + dx + sw, t.y + dy);
+    ctx.lineTo(t.x + dx + r + sw, t.y + dy + r + 4);
+    ctx.lineTo(t.x + dx - r + sw, t.y + dy + r + 4);
+    ctx.closePath();
+    ctx.fillStyle = t.claimed ? "#2a4a28" : "#1c3320";
+    ctx.fill();
+    ctx.strokeStyle = "#0a1008";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+}
+
+function drawFireAt(x, y, scale, lit) {
+  if (!lit) {
+    ctx.fillStyle = "#2a1c12";
+    ctx.beginPath();
+    ctx.ellipse(x, y + 6, 10 * scale, 5 * scale, 0, 0, 7);
+    ctx.fill();
+    return;
+  }
+  const f = Math.sin(animT * 11) * 2 + Math.sin(animT * 17) * 1;
+  ctx.beginPath();
+  ctx.ellipse(x, y + 8, 14 * scale, 6 * scale, 0, 0, 7);
+  ctx.fillStyle = "rgba(255,140,40,0.25)";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x - 11 * scale, y + 6);
+  ctx.quadraticCurveTo(x - 4, y - (28 + f) * scale, x, y - (8) * scale);
+  ctx.quadraticCurveTo(x + 5, y - (32 + f) * scale, x + 11 * scale, y + 6);
+  ctx.closePath();
+  ctx.fillStyle = "#ff7a1a";
+  ctx.fill();
+  ctx.strokeStyle = "#4a1800";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - 5 * scale, y + 5);
+  ctx.quadraticCurveTo(x, y - (16 + f * 0.6) * scale, x + 5 * scale, y + 5);
+  ctx.fillStyle = "#ffd24a";
+  ctx.fill();
+}
+
+function drawBoar(b) {
+  const wob = Math.sin(b.bob) * 1.2;
+  ctx.save();
+  ctx.translate(b.x, b.y + wob);
+  const t = S.chars[b.targetId];
+  if (t) ctx.scale(t.x >= b.x ? 1 : -1, 1);
+  strokeFill(() => { ctx.ellipse(0, 0, 16, 10, 0, 0, 7); }, "#5a3b28");
+  strokeFill(() => { ctx.ellipse(12, -2, 8, 6, 0, 0, 7); }, "#5a3b28", 2.5);
+  ctx.fillStyle = "#1a100c";
+  ctx.beginPath(); ctx.ellipse(16, -1, 3, 2, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#f2e6c8";
+  ctx.beginPath(); ctx.moveTo(8, -10); ctx.lineTo(12, -16); ctx.lineTo(13, -8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#111";
+  ctx.beginPath(); ctx.arc(15, -4, 1.4, 0, 7); ctx.fill();
+  ctx.restore();
+  if (b.hp < b.maxHp) {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(b.x - 12, b.y - 20, 24, 4);
+    ctx.fillStyle = "#d44";
+    ctx.fillRect(b.x - 12, b.y - 20, 24 * (b.hp / b.maxHp), 4);
+  }
+}
+
+function drawPlaceholderChar(c) {
+  const bob = Math.sin(c.bob) * (c.state === "idle" ? 1 : 2);
+  ctx.save();
+  ctx.translate(c.x, c.y + bob);
+  ctx.scale(c.facing, 1);
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.beginPath(); ctx.ellipse(0, 8, 9, 3.5, 0, 0, 7); ctx.fill();
+  const bodyH = c.id === "nisa" ? 16 : 14;
+  // legs
+  ctx.strokeStyle = "#0a0806";
+  ctx.lineWidth = 3;
+  const step = c.state === "idle" ? 0 : Math.sin(c.bob * 2) * 3;
+  ctx.beginPath(); ctx.moveTo(-3, 4); ctx.lineTo(-3 - step, 9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(3, 4); ctx.lineTo(3 + step, 9); ctx.stroke();
+  // body
+  strokeFill(() => { ctx.roundRect(-8, -bodyH + 2, 16, bodyH, 5); }, c.color, 3);
+  // role bits
+  if (c.id === "susp") {
+    ctx.strokeStyle = c.accent;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-6, -bodyH + 4); ctx.lineTo(0, -2); ctx.lineTo(6, -bodyH + 4); ctx.stroke();
+  }
+  if (c.id === "kelabu") {
+    ctx.save();
+    ctx.translate(10, -4);
+    ctx.rotate(-0.4);
+    strokeFill(() => { ctx.rect(-1, -16, 3, 22); }, "#6a4a28", 2);
+    ctx.fillStyle = "#c9c9c9";
+    ctx.beginPath(); ctx.moveTo(-3, -16); ctx.lineTo(5, -16); ctx.lineTo(1, -21); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  if (c.id === "hanan" && c.hasTorch) {
+    ctx.save();
+    ctx.translate(11, -6);
+    ctx.fillStyle = "#5a3a18";
+    ctx.fillRect(-1.5, -6, 3, 14);
+    ctx.fillStyle = "#ffb347";
+    ctx.beginPath(); ctx.arc(0, -10, 5, 0, 7); ctx.fill();
+    ctx.fillStyle = "#ffe28a";
+    ctx.beginPath(); ctx.arc(0, -11, 2.5, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  // head
+  const skin = "#e6c2a0";
+  if (c.id === "nisa") {
+    strokeFill(() => { ctx.arc(0, -bodyH - 6, 8, 0, 7); }, c.accent, 3);
+    ctx.beginPath(); ctx.arc(0, -bodyH - 5, 6, 0, Math.PI, false); ctx.fillStyle = skin; ctx.fill();
+  } else {
+    strokeFill(() => { ctx.arc(0, -bodyH - 6, 7, 0, 7); }, skin, 3);
+  }
+  if (c.id === "afan") {
+    ctx.fillStyle = c.accent;
+    ctx.beginPath();
+    ctx.ellipse(0, -bodyH - 11, 8, 3.2, 0, 0, 7);
+    ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillRect(-8, -bodyH - 11, 16, 4);
+  }
+  if (c.id === "asiya" || c.id === "safiya") {
+    ctx.fillStyle = c.accent;
+    ctx.beginPath();
+    const side = c.id === "asiya" ? -6 : 6;
+    ctx.arc(side, -bodyH - 11, 3, 0, 7);
+    ctx.fill(); ctx.stroke();
+  }
+  if (c.carry) {
+    ctx.fillStyle = "#8a5a28";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(7, -4, 10, 5, 1); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawChar(c) {
+  if (!c.unlocked) return;
+  if (!c.alive) {
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.translate(c.x, c.y);
+    ctx.fillStyle = "#2a1a18";
+    ctx.beginPath(); ctx.ellipse(0, 4, 10, 4, 0, 0, 7); ctx.fill();
+    ctx.restore();
+    return;
+  }
+  const spr = SPRITES[c.id];
+  if (spr && spr.complete && spr.naturalWidth) {
+    const bob = Math.sin(c.bob) * 1.5;
+    const h = 36, w = 28;
+    ctx.drawImage(spr, c.x - w / 2, c.y - h + 8 + bob, w, h);
+  } else {
+    drawPlaceholderChar(c);
+  }
+}
+
+function drawLabels() {
+  for (const c of Object.values(S.chars)) {
+    if (!c.unlocked) continue;
+    const s = worldToScreen(c.x, c.y);
+    ctx.font = "bold 11px system-ui,sans-serif";
+    ctx.textAlign = "center";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(0,0,0,0.8)";
+    ctx.fillStyle = c.alive ? "#f4e6c8" : "#886";
+    ctx.strokeText(c.name, s.x, s.y + 18 * S.cam.z);
+    ctx.fillText(c.name, s.x, s.y + 18 * S.cam.z);
+    if (!c.alive) continue;
+    if (c.state === "chop" || c.state === "kindle") {
+      const w = 26 * S.cam.z;
+      const prog = c.state === "kindle" ? 1 - clamp(c.chopT / 5, 0, 1) : clamp(c.chopT, 0, 1);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(s.x - w / 2, s.y - 36 * S.cam.z, w, 5);
+      ctx.fillStyle = c.state === "kindle" ? "#ff8a3a" : "#ffd040";
+      ctx.fillRect(s.x - w / 2, s.y - 36 * S.cam.z, w * prog, 5);
+    }
+    if (c.darkT > 0.4 && c.alive) {
+      const w = 28 * S.cam.z;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(s.x - w / 2, s.y - 42 * S.cam.z, w, 4);
+      ctx.fillStyle = "#ff3b3b";
+      ctx.fillRect(s.x - w / 2, s.y - 42 * S.cam.z, w * clamp(c.darkT / CFG.DARK_DEATH, 0, 1), 4);
+    }
+    if (c.hp < c.maxHp) {
+      const w = 24 * S.cam.z;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(s.x - w / 2, s.y + 22 * S.cam.z, w, 4);
+      ctx.fillStyle = "#5d5";
+      ctx.fillRect(s.x - w / 2, s.y + 22 * S.cam.z, w * (c.hp / c.maxHp), 4);
+    }
+    if (c.id === "hanan" && c.hasTorch) {
+      const w = 28 * S.cam.z;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(s.x - w / 2, s.y - 48 * S.cam.z, w, 4);
+      ctx.fillStyle = c.torchFuel < 3 ? "#ff6a3a" : "#ffb347";
+      ctx.fillRect(s.x - w / 2, s.y - 48 * S.cam.z, w * clamp(c.torchFuel / CFG.TORCH_TIME, 0, 1), 4);
+    }
+  }
+  for (const camp of S.camps) {
+    if (camp.lit) continue;
+    const s = worldToScreen(camp.x, camp.y);
+    ctx.font = "bold 11px system-ui,sans-serif";
+    ctx.textAlign = "center";
+    ctx.strokeStyle = "rgba(0,0,0,0.8)";
+    ctx.lineWidth = 3;
+    ctx.fillStyle = "#e6c888";
+    ctx.strokeText(camp.name, s.x, s.y + 36);
+    ctx.fillText(camp.name, s.x, s.y + 36);
+    ctx.font = "10px system-ui,sans-serif";
+    ctx.fillStyle = "#c9b08a";
+    ctx.strokeText("belum menyala", s.x, s.y + 48);
+    ctx.fillText("belum menyala", s.x, s.y + 48);
+  }
+}
+
+function drawThought() {
+  if (mode !== "play") return;
+  if (S.fuel / S.fuelMax >= 0.3) return;
+  const m = S.camps[0];
+  const s = worldToScreen(m.x + 28, m.y - 54);
+  ctx.beginPath();
+  ctx.ellipse(s.x, s.y, 22, 15, 0, 0, 7);
+  ctx.fillStyle = "#fff8e8";
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#000";
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(s.x - 8, s.y + 12);
+  ctx.lineTo(s.x - 2, s.y + 12);
+  ctx.lineTo(s.x - 10, s.y + 20);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // log icon
+  ctx.fillStyle = "#8a5a28";
+  ctx.beginPath();
+  ctx.roundRect(s.x - 14, s.y - 4, 16, 7, 2);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#d22";
+  ctx.font = "bold 14px system-ui,sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("!", s.x + 10, s.y + 5);
+}
+
+function drawDarkness() {
+  if (!lightCv) return;
+  const lctx = lightCtx;
+  lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  lctx.globalCompositeOperation = "source-over";
+  lctx.clearRect(0, 0, viewW, viewH);
+  lctx.fillStyle = "rgba(4,3,10,0.93)";
+  lctx.fillRect(0, 0, viewW, viewH);
+  lctx.globalCompositeOperation = "destination-out";
+  for (const L of lightsList()) {
+    const s = worldToScreen(L.x, L.y);
+    const r = L.r * S.cam.z;
+    const g = lctx.createRadialGradient(s.x, s.y, r * 0.22, s.x, s.y, r);
+    g.addColorStop(0, "rgba(0,0,0,1)");
+    g.addColorStop(0.55, "rgba(0,0,0,0.75)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    lctx.fillStyle = g;
+    lctx.beginPath();
+    lctx.arc(s.x, s.y, r, 0, 7);
+    lctx.fill();
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.drawImage(lightCv, 0, 0, viewW, viewH);
+  // warm glow
+  ctx.globalCompositeOperation = "lighter";
+  for (const L of lightsList()) {
+    const s = worldToScreen(L.x, L.y);
+    const r = L.r * S.cam.z * 0.7;
+    const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+    g.addColorStop(0, "rgba(255,150,40,0.16)");
+    g.addColorStop(1, "rgba(255,120,20,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
+function drawEyes() {
+  for (const e of S.eyes) {
+    if (lightAt(e.x, e.y) > 0.2) continue;
+    if (Math.sin(animT * 2.2 + e.ph) < -0.85) continue;
+    const s = worldToScreen(e.x, e.y);
+    if (s.x < -20 || s.y < -20 || s.x > viewW + 20 || s.y > viewH + 20) continue;
+    ctx.fillStyle = "#ff2a22";
+    ctx.shadowColor = "#ff3010";
+    ctx.shadowBlur = 8;
+    ctx.fillRect(s.x - 5, s.y, 3.2, 2.2);
+    ctx.fillRect(s.x + 2, s.y, 3.2, 2.2);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawEdgeArrows() {
+  if (mode !== "play") return;
+  const items = [];
+  for (const c of S.camps) if (!c.lit) items.push({ x: c.x, y: c.y, label: c.name, col: "#e6c888" });
+  const h = S.chars.hanan;
+  if (h && h.alive && h.hasTorch) items.push({ x: h.x, y: h.y, label: "Hanan", col: "#ff8aa0" });
+  for (const it of items) {
+    const s = worldToScreen(it.x, it.y);
+    const pad = 28;
+    const on = s.x > pad && s.y > 70 && s.x < viewW - pad && s.y < viewH - 90;
+    if (on) continue;
+    const cx = viewW / 2, cy = viewH / 2 + 10;
+    const a = Math.atan2(s.y - cy, s.x - cx);
+    const ex = clamp(s.x, pad, viewW - pad);
+    const ey = clamp(s.y, 74, viewH - 100);
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.rotate(a);
+    ctx.fillStyle = it.col;
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(12, 0); ctx.lineTo(-8, 8); ctx.lineTo(-8, -8);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    ctx.font = "bold 10px system-ui,sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = it.col;
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 3;
+    ctx.strokeText(it.label, ex, ey + 16);
+    ctx.fillText(it.label, ex, ey + 16);
+  }
+}
+
+function drawWorld() {
+  const cam = S.cam;
+  let ox = 0, oy = 0;
+  if (shake > 0) {
+    ox = (Math.random() - 0.5) * 10 * shake;
+    oy = (Math.random() - 0.5) * 10 * shake;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, viewW, viewH);
+  ctx.fillStyle = "#07060a";
+  ctx.fillRect(0, 0, viewW, viewH);
+  ctx.save();
+  ctx.translate(ox, oy);
+  drawGround();
+  ctx.save();
+  ctx.translate(viewW / 2, viewH / 2);
+  ctx.scale(cam.z, cam.z);
+  ctx.translate(-cam.x, -cam.y);
+  // wood pile
+  const pile = depositPt();
+  const n = Math.min(8, S.logs);
+  for (let i = 0; i < n; i++) {
+    ctx.save();
+    ctx.translate(pile.x - 10 + (i % 3) * 8, pile.y + 10 - Math.floor(i / 3) * 5);
+    ctx.rotate(-0.2 + (i % 3) * 0.15);
+    ctx.fillStyle = "#7a4e24";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(-7, -3, 14, 6, 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  const sprites = [];
+  for (const t of S.trees) sprites.push({ y: t.y, z: 0, draw: () => drawTree(t) });
+  for (const c of S.camps) sprites.push({ y: c.y + 4, z: 1, draw: () => drawFireAt(c.x, c.y, c.main ? 1 : 0.8, c.lit) });
+  for (const b of S.boars) sprites.push({ y: b.y, z: 2, draw: () => drawBoar(b) });
+  for (const c of Object.values(S.chars)) if (c.unlocked) sprites.push({ y: c.y, z: 3, draw: () => drawChar(c) });
+  for (const b of S.bolts) {
+    sprites.push({
+      y: b.y, z: 4, draw: () => {
+        ctx.fillStyle = "#e6a0ff";
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#fff6c8";
+        ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill();
+      },
+    });
+  }
+  sprites.sort((a, b) => a.y - b.y || a.z - b.z);
+  for (const s of sprites) s.draw();
+  ctx.restore();
+  drawDarkness();
+  drawEyes();
+  drawLabels();
+  drawThought();
+  for (const f of S.fx) {
+    const s = worldToScreen(f.x, f.y);
+    ctx.globalAlpha = clamp(f.t, 0, 1);
+    ctx.font = "bold 12px system-ui,sans-serif";
+    ctx.textAlign = "center";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 3;
+    ctx.fillStyle = f.col;
+    ctx.strokeText(f.txt, s.x, s.y);
+    ctx.fillText(f.txt, s.x, s.y);
+    ctx.globalAlpha = 1;
+  }
+  drawEdgeArrows();
+  ctx.restore();
+}
+
+function draw() {
+  if (!ctx || !S) return;
+  if (!HEADLESS) drawWorld();
+  syncUI();
+}
+
+// ---------- UI ----------
+function el(id) { return ui && ui[id]; }
+
+function syncUI() {
+  if (HEADLESS || !ui) return;
+  const hud = el("hud");
+  const title = el("title");
+  const pause = el("pause");
+  const end = el("end");
+  const help = el("help");
+  const banner = el("banner");
+  if (!hud) return;
+  hud.classList.toggle("hide", mode === "title" || mode === "end" || (mode === "paused" ? false : false));
+  hud.classList.toggle("hide", mode === "title" || mode === "end");
+  title.classList.toggle("hide", mode !== "title");
+  pause.classList.toggle("hide", mode !== "paused");
+  end.classList.toggle("hide", mode !== "end");
+  help.classList.toggle("hide", !ui.helpOpen);
+  if (mode === "play" || mode === "paused") {
+    el("kayu").textContent = String(S.logs);
+    const pct = clamp(S.fuel / S.fuelMax, 0, 1);
+    el("fuelFill").style.width = (pct * 100).toFixed(1) + "%";
+    el("fuelFill").classList.toggle("low", pct < 0.3);
+    el("fuelTxt").textContent = Math.ceil(S.fuel) + "/" + S.fuelMax;
+    el("malam").textContent = "Malam " + nightIndex();
+    el("timer").textContent = fmtTime(S.time);
+    el("camps").textContent = "Kem " + S.camps.filter((c) => c.lit).length + "/3";
+    el("lv").textContent = "Api Lv " + (S.level + 1);
+    const cost = upgradeCost();
+    const up = el("btnUp");
+    if (cost == null) { up.textContent = "Api Maksimum"; up.disabled = true; }
+    else { up.textContent = "Upgrade Api  ·  " + cost + " kayu"; up.disabled = S.logs < cost || mode !== "play"; }
+    const h = S.chars.hanan;
+    const ht = el("btnTorch");
+    const hananReady = !!(h && h.unlocked && h.alive);
+    ht.disabled = !hananReady || mode !== "play";
+    if (!hananReady) ht.textContent = "Hantar Obor";
+    else if (h.hasTorch && !targetMode) ht.textContent = "Panggil Pulang";
+    else ht.textContent = targetMode === "torch" ? "Batal Obor" : "Hantar Obor";
+    const mg = el("btnMagic");
+    const ready = twinsReady();
+    mg.classList.toggle("hide", !ready && S.level < 4);
+    mg.disabled = !ready || S.magicCd > 0 || S.logs < CFG.MAGIC_COST || mode !== "play";
+    mg.textContent = !ready ? "Api Ajaib" : (S.magicCd > 0 ? "Api Ajaib  " + Math.ceil(S.magicCd) + "s" : "Api Ajaib  ·  " + CFG.MAGIC_COST + " kayu");
+    // party
+    const party = el("party");
+    if (party && party._hash !== partyHash()) {
+      party._hash = partyHash();
+      party.innerHTML = "";
+      for (const d of CHAR_DEF) {
+        const c = S.chars[d.id];
+        const b = document.createElement("div");
+        b.className = "pi" + (!c.unlocked ? " locked" : !c.alive ? " dead" : c.darkT > 1 ? " danger" : "");
+        b.style.setProperty("--c", d.color);
+        b.title = d.name;
+        b.textContent = d.name.split(" ").pop().slice(0, 2);
+        party.appendChild(b);
+      }
+    }
+    const toasts = el("toasts");
+    if (toasts) {
+      const t = toastQ.map((x) => x.text).join(" | ");
+      if (toasts._t !== t) {
+        toasts._t = t;
+        toasts.innerHTML = toastQ.map((x) => "<div class='toast'>" + escapeHtml(x.text) + "</div>").join("");
+      }
+    }
+  }
+  if (banner) {
+    const show = mode === "play" && !!targetMode;
+    banner.classList.toggle("hide", !show);
+    if (targetMode === "torch") banner.textContent = "Tap destinasi untuk Hanan — atau tap tapak kem.";
+    if (targetMode === "magic") banner.textContent = "Tap tapak kem yang gelap untuk Api Ajaib.";
+  }
+  if (mode === "end") {
+    el("endTitle").textContent = endKind === "win" ? "Hutan dah terang!" : (S.endMsg === "Api padam!" ? "Api padam!" : "Permainan tamat");
+    el("endMsg").textContent = S.endMsg || "";
+    el("endStats").innerHTML =
+      "Masa: " + fmtTime(S.time) + " · Malam " + nightIndex() +
+      "<br>Kayu ditebang: " + S.stats.kayu + " · Dimasukkan: " + S.stats.fed +
+      "<br>Babi hutan: " + S.stats.boars + " · Hilang: " + S.stats.lost;
+  }
+}
+
+function partyHash() {
+  return Object.values(S.chars).map((c) => (c.unlocked ? 1 : 0) + (c.alive ? 2 : 0) + (c.darkT > 1 ? 4 : 0)).join("");
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
+function bindUI() {
+  ui = {};
+  for (const node of document.querySelectorAll("[id]")) ui[node.id] = node;
+  ui.helpOpen = false;
+  const press = (id, fn) => {
+    const n = el(id);
+    if (!n) return;
+    n.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); Aud.unlock(); Aud.click(); fn(e); });
+  };
+  press("btnStart", () => startGame());
+  press("btnHow", () => { ui.helpOpen = true; syncUI(); });
+  press("btnHelpClose", () => { ui.helpOpen = false; syncUI(); });
+  press("btnPause", () => { if (mode === "play") mode = "paused"; syncUI(); });
+  press("btnResume", () => { if (mode === "paused") mode = "play"; syncUI(); });
+  press("btnRestart", () => restartPlay());
+  press("btnRestart2", () => restartPlay());
+  press("btnEndAgain", () => { newWorld(); mode = "title"; syncUI(); draw(); });
+  press("btnMute", () => { Aud.muted = !Aud.muted; Aud.unlock(); el("btnMute").textContent = Aud.muted ? "Bunyi" : "Senyap"; });
+  press("btnUp", () => { if (mode === "play") doUpgrade(); });
+  press("btnTorch", () => {
+    if (mode !== "play") return;
+    const h = S.chars.hanan;
+    if (!h || !h.unlocked || !h.alive) return;
+    if (targetMode === "torch") { targetMode = null; syncUI(); return; }
+    if (h.hasTorch) { callHananHome(); return; }
+    targetMode = "torch";
+    toast("Tap tempat Hanan patut pergi.");
+    syncUI();
+  });
+  press("btnMagic", () => {
+    if (mode !== "play") return;
+    if (targetMode === "magic") { targetMode = null; syncUI(); return; }
+    targetMode = "magic";
+    toast("Tap tapak kem yang gelap.");
+    syncUI();
+  });
+  press("btnCenter", () => {
+    camUser = false;
+    followHanan = 0;
+    if (S) { S.cam.x = S.camps[0].x; S.cam.y = S.camps[0].y; }
+  });
+}
+
+function canvasPos(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+function hookCanvas() {
+  cv.addEventListener("pointerdown", (e) => {
+    if (mode === "title" || mode === "end" || mode === "paused") return;
+    e.preventDefault();
+    Aud.unlock();
+    const p = canvasPos(e);
+    pointers.set(e.pointerId, p);
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    if (pointers.size === 1) {
+      drag.active = true; drag.panned = false; drag.lx = p.x; drag.ly = p.y; drag.id = e.pointerId;
+      pinchD = 0;
+    } else if (pointers.size === 2) {
+      const arr = [...pointers.values()];
+      pinchD = Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y);
+      drag.active = false;
+    }
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    const p = canvasPos(e);
+    pointers.set(e.pointerId, p);
+    if (pointers.size === 2 && S) {
+      const arr = [...pointers.values()];
+      const d = Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y);
+      if (pinchD) {
+        const mid = { x: (arr[0].x + arr[1].x) / 2, y: (arr[0].y + arr[1].y) / 2 };
+        zoomAt(mid.x, mid.y, S.cam.z * (d / pinchD));
+        camUser = true;
+        followHanan = 0;
+      }
+      pinchD = d;
+      return;
+    }
+    if (drag.active && drag.id === e.pointerId && S) {
+      const dx = p.x - drag.lx, dy = p.y - drag.ly;
+      if (Math.hypot(dx, dy) > 8) drag.panned = true;
+      if (drag.panned) {
+        S.cam.x -= dx / S.cam.z;
+        S.cam.y -= dy / S.cam.z;
+        camUser = true;
+        followHanan = 0;
+      }
+      drag.lx = p.x; drag.ly = p.y;
+    }
+  });
+  const up = (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    const p = canvasPos(e);
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchD = 0;
+    if (drag.active && drag.id === e.pointerId) {
+      drag.active = false;
+      if (!drag.panned && S && mode === "play") {
+        const w = screenToWorld(p.x, p.y);
+        onWorldTap(w.x, w.y);
+      }
+    }
+  };
+  cv.addEventListener("pointerup", up);
+  cv.addEventListener("pointercancel", up);
+  cv.addEventListener("wheel", (e) => {
+    if (!S || mode === "title") return;
+    e.preventDefault();
+    const p = canvasPos(e);
+    zoomAt(p.x, p.y, S.cam.z * (e.deltaY > 0 ? 0.92 : 1.08));
+    camUser = true;
+  }, { passive: false });
+  // avoid context menu on long press
+  cv.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
+function resize() {
+  if (!cv) return;
+  const vv = window.visualViewport;
+  viewW = Math.max(1, (vv && vv.width) || cv.clientWidth || window.innerWidth);
+  viewH = Math.max(1, (vv && vv.height) || cv.clientHeight || window.innerHeight);
+  dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(viewW * dpr);
+  cv.height = Math.round(viewH * dpr);
+  if (!lightCv) lightCv = document.createElement("canvas");
+  lightCv.width = cv.width;
+  lightCv.height = cv.height;
+  lightCtx = lightCv.getContext("2d");
+  if (ctx && !groundPat && !HEADLESS) makeGround();
+  if (ctx && S) draw();
+}
+
+function loop(ts) {
+  const t = ts * 0.001;
+  let dt = lastTs ? t - lastTs : 0.016;
+  lastTs = t;
+  if (dt > 0.08) dt = 0.08;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function boot() {
+  cv = document.getElementById("game") || document.getElementById("c");
+  if (!cv && HEADLESS) {
+    cv = {
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 360, height: 640 }),
+      addEventListener() {},
+      clientWidth: 360, clientHeight: 640, style: {},
+      width: 360, height: 640,
+      getContext: () => ({
+        setTransform() {}, clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, ellipse() {},
+        moveTo() {}, lineTo() {}, quadraticCurveTo() {}, closePath() {}, fill() {}, stroke() {},
+        save() {}, restore() {}, translate() {}, scale() {}, rotate() {}, drawImage() {},
+        createRadialGradient: () => ({ addColorStop() {} }),
+        createPattern: () => "#000",
+        measureText: () => ({ width: 10 }),
+        fillText() {}, strokeText() {}, rect() {}, roundRect() {},
+        setLineDash() {},
+      }),
+    };
+    if (typeof document !== "undefined" && document.body) document.body.appendChild && (void 0);
+  }
+  ctx = cv.getContext ? cv.getContext("2d") : cv.getContext("2d");
+  if (ctx && !ctx.roundRect) {
+    ctx.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
+  }
+  if (!HEADLESS) {
+    bindUI();
+    hookCanvas();
+    resize();
+    addEventListener("resize", resize);
+    if (window.visualViewport) visualViewport.addEventListener("resize", resize);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && mode === "play") { mode = "paused"; syncUI(); }
+    });
+  } else {
+    viewW = 360; viewH = 640; dpr = 1;
+  }
+  newWorld(1);
+  if (!HEADLESS) requestAnimationFrame(loop);
+}
+
+const KemApi = {
+  CFG, CHAR_DEF, SPRITES, loadSprite,
+  get S() { return S; },
+  get mode() { return mode; },
+  get endKind() { return endKind; },
+  newWorld, startGame, restartPlay, update, feedFire, doUpgrade,
+  assignTree, sendTorchTo, shootMagic, lightCamp, isLit, lightAt, inCampLight,
+  mainLightR, upgradeCost, twinsReady, nightIndex, decayMul,
+  hitTree, hitCamp, onWorldTap, living, endGame, boot,
+};
+globalThis.KemApi = KemApi;
+
+if (!HEADLESS) {
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+}
+
+  </script>
+</body>
+</html>
