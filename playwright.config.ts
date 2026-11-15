@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 45_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
-  use: { channel, trace: "retain-on-failure" },
+  use: { baseURL: "http://localhost:4173", channel, trace: "retain-on-failure" },
   webServer: {
     command: "npm run preview",
     url: "http://localhost:4173",
