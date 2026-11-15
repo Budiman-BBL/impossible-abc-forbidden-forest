@@ -1,5 +1,7 @@
 # Impossible ABC: The Forbidden Forest
 
+[![CI](https://github.com/Budiman-BBL/impossible-abc-forbidden-forest/actions/workflows/ci.yml/badge.svg)](https://github.com/Budiman-BBL/impossible-abc-forbidden-forest/actions/workflows/ci.yml)
+
 Game pengembaraan survival 2D dengan tujuh watak asal dari projek animasi **The Impossible ABC**:
 Cikgu Nisa, Affan, Ayan, Unais, Hannan, Asiya dan Safiya.
 Dibina dengan **Phaser 3 + TypeScript + Vite**, untuk browser dahulu dan kemudian APK Android (Capacitor).

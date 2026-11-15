@@ -13,7 +13,7 @@
 ## Exit criteria
 | Criterion | Status | Evidence |
 |---|---|---|
-| CI green | see GitHub Actions badge/run | `.github/workflows/ci.yml` |
+| CI green | Pass | Run 43705763956 (typecheck, lint, 14 unit tests, build, 4 e2e tests, Pages deploy) |
 | Unit tests of fire formula pass with the same values as v2 | Pass | `tests/unit/campfire.test.ts` compares against `legacy/kem-api-unggun-v2.html` |
 | Opens in Chrome Android without errors | Pass in emulation (Pixel 7 landscape, Playwright); **real phone not yet tested by Budiman** | `tests/e2e/smoke.spec.ts` |
 
