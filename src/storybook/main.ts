@@ -1,6 +1,7 @@
 import Phaser from "phaser";
-import { StoryScene } from "./StoryScene";
-import { StoryHud } from "./StoryHud";
+import { CampScene } from "./CampScene";
+import { CampHud } from "./CampHud";
+import { RigTestScene } from "./RigTestScene";
 import { isNativeApp, setupFullscreenOnFirstTap } from "../platform";
 
 /** DPR cap for the storybook PoC (`?dpr=` overrides on the web for testing). */
@@ -24,7 +25,8 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.NONE, zoom: 1 / d0 },
   input: { activePointers: 3 },
   render: { antialias: true, roundPixels: false, powerPreference: "high-performance" },
-  scene: [StoryScene, StoryHud],
+  // ?rig=1: dev-only rig test page (Affan large on a checkerboard, deterministic poses for screenshots)
+  scene: new URLSearchParams(location.search).has("rig") ? [RigTestScene] : [CampScene, CampHud],
 });
 let pending = 0;
 function fit(): void {

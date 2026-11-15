@@ -1,38 +1,42 @@
 /**
- * Affan as a cut-out puppet: AI-painted turnaround (front / side / back) cut into torso, arms and
- * legs, animated here (walk cycle with leg swing / step, arm swing, body bob, idle breathing,
- * squash on start/stop, cross-fade between facings). One pick-up pose is a whole sprite.
+ * Affan as a cut-out puppet (rig v2): parts cut from the official turnaround (side / front / back),
+ * placed every frame by forward kinematics from `affanRig.ts` (walk, idle breathing, gather crouch).
+ * A facing shows ONE whole view set; facing left mirrors the whole root container.
  */
 import Phaser from "phaser";
-import rig from "./assets/affan_rig.json";
+import rigJson from "./assets/affan_rig.json";
+import atlasPng from "./assets/affan_atlas.png";
+import atlasJson from "./assets/affan_atlas.json";
+import { drawOrder, mirrorFor, poseLocals, solve, viewFor, type Facing, type PoseInput, type RigDef, type RigPart, type ViewName } from "./affanRig";
 
+export type { Facing } from "./affanRig";
 export const ATLAS_KEY = "storybook";
+export const AFFAN_ATLAS = "affan";
 /** Affan's height in world units (v2 Cikgu Nisa is 48; the storybook camera is closer). */
 export const AFFAN_H = 76;
-const SRC_H = 329; // torso+legs height in the atlas (px)
+const rig = rigJson as unknown as RigDef;
 
-type Part = { ox: number; oy: number; x: number; y: number };
-type ViewName = "front" | "back" | "side";
-export type Facing = "down" | "up" | "left" | "right";
+export function preloadAffan(scene: Phaser.Scene): void {
+  scene.load.atlas(AFFAN_ATLAS, atlasPng, atlasJson);
+}
 
-interface View {
+interface ViewSet {
   c: Phaser.GameObjects.Container;
-  torso: Phaser.GameObjects.Image;
-  arms: Phaser.GameObjects.Image[];
-  legs: Phaser.GameObjects.Image[];
-  base: Map<Phaser.GameObjects.Image, { x: number; y: number }>;
+  parts: RigPart[];
+  imgs: Map<string, Phaser.GameObjects.Image>;
 }
 
 export class Affan {
   readonly root: Phaser.GameObjects.Container;
   private readonly body: Phaser.GameObjects.Container;
-  private readonly views: Record<ViewName, View>;
-  private readonly pickup: Phaser.GameObjects.Image;
+  private readonly views: Record<ViewName, ViewSet>;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   facing: Facing = "down";
   private view: ViewName = "front";
   private phase = 0;
   private t = 0;
+  private amp = 0;
+  private gather = 0;
   private squash = 0;
   private wasMoving = false;
   posing = false;
@@ -41,115 +45,96 @@ export class Affan {
     this.root = scene.add.container(x, y);
     this.shadow = scene.add.ellipse(0, 0, 48, 14, 0x000000, 0.35);
     this.body = scene.add.container(0, 0);
-    this.body.setScale(AFFAN_H / SRC_H);
     this.root.add([this.shadow, this.body]);
-    const r = rig as unknown as Record<ViewName, Record<string, Part>>;
-    const mk = (name: ViewName): View => {
+    const mk = (name: ViewName): ViewSet => {
       const c = scene.add.container(0, 0);
-      const base = new Map<Phaser.GameObjects.Image, { x: number; y: number }>();
-      const img = (key: string): Phaser.GameObjects.Image => {
-        const p = r[name][key]!;
-        const im = scene.add.image(p.x, p.y, ATLAS_KEY, `affan_${name}_${key}`).setOrigin(p.ox, p.oy);
-        base.set(im, { x: p.x, y: p.y });
-        return im;
-      };
-      const torso = img("torso");
-      let arms: Phaser.GameObjects.Image[], legs: Phaser.GameObjects.Image[];
-      if (name === "side") {
-        const legFar = img("leg0").setTint(0x9a8f88);
-        const legNear = img("leg0");
-        base.set(legFar, { x: r.side.leg0!.x + 6, y: r.side.leg0!.y });
-        legs = [legNear, legFar];
-        arms = [img("arm0")];
-        c.add([legFar, legNear, torso, arms[0]!]);
-      } else {
-        legs = [img("leg0"), img("leg1")];
-        arms = [img("arm0"), img("arm1")];
-        // back view: the backpack hides the arms' roots, draw arms under the torso
-        if (name === "back") c.add([...legs, ...arms, torso]);
-        else c.add([...legs, torso, ...arms]);
+      const parts = rig.views[name];
+      const imgs = new Map<string, Phaser.GameObjects.Image>();
+      for (const p of drawOrder(parts)) {
+        const im = scene.add.image(0, 0, AFFAN_ATLAS, p.frame).setOrigin(p.ox ?? 0.5, p.oy ?? 0.5);
+        if (p.tint) im.setTint(Number(p.tint));
+        imgs.set(p.id, im);
+        c.add(im);
       }
-      c.setVisible(name === "front");
+      c.setVisible(name === this.view);
       this.body.add(c);
-      return { c, torso, arms, legs, base };
+      return { c, parts, imgs };
     };
     this.views = { front: mk("front"), back: mk("back"), side: mk("side") };
-    const pk = (rig as unknown as { pickup: { ox: number; oy: number } }).pickup;
-    this.pickup = scene.add.image(0, 0, ATLAS_KEY, "affan_pickup").setOrigin(pk.ox, pk.oy).setVisible(false);
-    this.body.add(this.pickup);
+    this.apply();
   }
 
   get x(): number { return this.root.x; }
   get y(): number { return this.root.y; }
 
-  setFacing(f: Facing, scene: Phaser.Scene): void {
+  /** Swap the whole view set; left/right only mirror the root (never a part). */
+  setFacing(f: Facing, scene?: Phaser.Scene): void {
     if (f === this.facing) return;
     this.facing = f;
-    const v: ViewName = f === "down" ? "front" : f === "up" ? "back" : "side";
-    const flip = f === "left" ? -1 : 1;
-    if (v === this.view) {
-      // left <-> right: quick squash-flip instead of a pop
-      scene.tweens.add({ targets: this.views.side.c, scaleX: { from: 0, to: flip }, duration: 110, ease: "Quad.easeOut" });
+    this.root.scaleX = Math.abs(this.root.scaleX) * mirrorFor(f);
+    const v = viewFor(f);
+    if (v === this.view) return;
+    const from = this.views[this.view].c, to = this.views[v].c;
+    this.view = v;
+    this.apply();
+    if (!scene) {
+      from.setVisible(false);
+      to.setVisible(true).setAlpha(1);
       return;
     }
-    const from = this.views[this.view].c, to = this.views[v].c;
-    to.setScale(v === "side" ? flip : 1, 1);
-    to.setVisible(true).setAlpha(0);
-    scene.tweens.add({ targets: to, alpha: 1, duration: 120 });
-    scene.tweens.add({ targets: from, alpha: 0, duration: 120, onComplete: () => from.setVisible(false).setAlpha(1) });
-    this.view = v;
+    scene.tweens.killTweensOf([from, to]);
+    to.setVisible(true).setAlpha(1);
+    from.setAlpha(1);
+    // short fade of the outgoing set on top of the incoming one (both are complete sets, so no mixed limbs)
+    this.body.bringToTop(from);
+    scene.tweens.add({ targets: from, alpha: 0, duration: 90, onComplete: () => from.setVisible(false).setAlpha(1) });
   }
 
-  /** Pick-up pose for `ms`, then back to the rig. */
+  /** Gather / pick-up crouch for `ms`, `onMid` at the lowest point. */
   pose(scene: Phaser.Scene, ms: number, onMid: () => void): void {
     this.posing = true;
-    const cur = this.views[this.view].c;
-    this.pickup.setFlipX(this.facing === "left").setVisible(true).setScale(1, 0.9);
-    cur.setVisible(false);
-    scene.tweens.add({ targets: this.pickup, scaleY: 1, duration: 140, ease: "Back.easeOut" });
-    scene.time.delayedCall(ms * 0.5, onMid);
-    scene.time.delayedCall(ms, () => {
-      this.pickup.setVisible(false);
-      cur.setVisible(true);
-      this.squash = 0.08;
-      this.posing = false;
+    const st = { g: 0 };
+    scene.tweens.add({
+      targets: st, g: 1, duration: ms * 0.45, ease: "Sine.easeInOut", yoyo: true, hold: ms * 0.1,
+      onUpdate: () => { this.gather = st.g; },
+      onComplete: () => { this.gather = 0; this.posing = false; this.squash = 0.06; },
     });
+    scene.time.delayedCall(ms * 0.5, onMid);
   }
 
   /** speed01: 0 (idle) .. 1 (full walk speed). */
   update(dt: number, speed01: number): void {
     this.t += dt;
     const moving = speed01 > 0.08;
-    if (moving !== this.wasMoving) this.squash = moving ? -0.05 : 0.07;
+    if (moving !== this.wasMoving) this.squash = moving ? -0.04 : 0.05;
     this.wasMoving = moving;
     this.squash *= Math.exp(-dt * 9);
-    this.phase += dt * (5 + 5.5 * speed01) * (moving ? 1 : 0);
+    const target = moving ? Math.min(1, speed01 * 1.25) : 0;
+    this.amp += (target - this.amp) * (1 - Math.exp(-dt * 10));
+    this.phase += dt * (6 + 5 * speed01) * (moving ? 1 : 0);
+    // settle to a neutral (legs together) phase when stopping
     if (!moving) this.phase += (Math.round(this.phase / Math.PI) * Math.PI - this.phase) * (1 - Math.exp(-dt * 10));
-    const s = Math.sin(this.phase);
-    const amp = Math.min(1, speed01 * 1.3);
-    const breathe = moving ? 0 : Math.sin(this.t * 2.4) * 0.012;
-    const bob = -Math.abs(Math.cos(this.phase)) * 7 * amp;
-    const sy = 1 + this.squash + breathe;
+    this.apply();
+  }
+
+  /** Deterministic pose (rig test / screenshots). */
+  setPose(i: Partial<PoseInput>): void {
+    if (i.phase !== undefined) this.phase = i.phase;
+    if (i.amp !== undefined) this.amp = i.amp;
+    if (i.gather !== undefined) this.gather = i.gather;
+    if (i.t !== undefined) this.t = i.t;
+    this.squash = 0;
+    this.apply();
+  }
+
+  private apply(): void {
     const v = this.views[this.view];
-    const B = (im: Phaser.GameObjects.Image) => v.base.get(im)!;
-    if (this.view === "side") {
-      v.torso.setPosition(B(v.torso).x, B(v.torso).y + bob);
-      const [near, far] = v.legs as [Phaser.GameObjects.Image, Phaser.GameObjects.Image];
-      near.setRotation(-s * 0.55 * amp).setPosition(B(near).x, B(near).y + bob * 0.4);
-      far.setRotation(s * 0.55 * amp).setPosition(B(far).x, B(far).y + bob * 0.4);
-      v.arms[0]!.setRotation(s * 0.5 * amp).setPosition(B(v.arms[0]!).x, B(v.arms[0]!).y + bob);
-    } else {
-      v.torso.setPosition(B(v.torso).x, B(v.torso).y + bob);
-      v.legs.forEach((leg, i) => {
-        const lift = Math.max(0, i === 0 ? s : -s) * amp;
-        leg.setPosition(B(leg).x, B(leg).y + bob * 0.5 - lift * 9).setScale(1, 1 - lift * 0.1);
-      });
-      v.arms.forEach((arm, i) => {
-        const sw = (i === 0 ? -s : s) * amp;
-        arm.setPosition(B(arm).x, B(arm).y + bob).setRotation(sw * 0.16 * (i === 0 ? 1 : -1)).setScale(1, 1 - Math.abs(sw) * 0.05);
-      });
+    const w = solve(v.parts, poseLocals(this.view, { phase: this.phase, amp: this.amp, gather: this.gather, t: this.t }));
+    for (const [id, im] of v.imgs) {
+      const p = w[id]!;
+      im.setPosition(p.x, p.y).setRotation(p.rot).setScale(p.sx, p.sy);
     }
-    this.body.setScale((AFFAN_H / SRC_H) * (1 - this.squash * 0.6), (AFFAN_H / SRC_H) * sy);
-    this.shadow.setScale(1 - Math.abs(bob) * 0.012, 1);
+    const k = AFFAN_H / rig.height;
+    this.body.setScale(k * (1 - this.squash * 0.6), k * (1 + this.squash));
   }
 }
