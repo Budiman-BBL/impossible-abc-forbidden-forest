@@ -1,0 +1,12 @@
+{
+  "_note": "Single source of truth for character names. Ids are stable; change displayName only here. Spelling Affan/Hannan is official (decision 15 Nov 2026). interimFrame = frame in public/atlases/interim-v2 (old file names).",
+  "characters": [
+    { "id": "nisa", "displayName": "Cikgu Nisa", "role": "leader", "roleMs": "Ketua Ekspedisi", "roleEn": "Leader / Guide", "legacyName": "Cikgu Nisa", "legacyRole": "ketua", "interimFrame": "nisa", "bodyHeight": 167, "startsUnlocked": true, "unlockLevel": 0 },
+    { "id": "affan", "displayName": "Affan", "role": "collector", "roleMs": "Pengumpul Sumber", "roleEn": "Resource Collector", "legacyName": "Afan", "legacyRole": "pekerja", "interimFrame": "afan", "bodyHeight": 138, "startsUnlocked": true, "unlockLevel": 0 },
+    { "id": "ayan", "displayName": "Ayan", "role": "guardian", "roleMs": "Penjaga", "roleEn": "Guardian", "legacyName": "Ayan", "legacyRole": "pengawal", "interimFrame": "ayan", "bodyHeight": 141, "startsUnlocked": false, "unlockLevel": 1 },
+    { "id": "unais", "displayName": "Unais", "role": "builder", "roleMs": "Pembina", "roleEn": "Builder", "legacyName": "Unais", "legacyRole": "pekerja", "interimFrame": "unais", "bodyHeight": 144, "startsUnlocked": true, "unlockLevel": 0 },
+    { "id": "hannan", "displayName": "Hannan", "role": "torchbearer", "roleMs": "Pembawa Obor", "roleEn": "Torchbearer", "legacyName": "Hanan", "legacyRole": "obor", "interimFrame": "hanan", "bodyHeight": 131, "startsUnlocked": false, "unlockLevel": 2 },
+    { "id": "asiya", "displayName": "Asiya", "role": "shaman", "roleMs": "Shaman", "roleEn": "Shaman", "legacyName": "Asiya", "legacyRole": "kembar", "interimFrame": "asiya", "bodyHeight": 135, "startsUnlocked": false, "unlockLevel": 3 },
+    { "id": "safiya", "displayName": "Safiya", "role": "shaman", "roleMs": "Shaman", "roleEn": "Shaman", "legacyName": "Safiya", "legacyRole": "kembar", "interimFrame": "safiya", "bodyHeight": 134, "startsUnlocked": false, "unlockLevel": 4 }
+  ]
+}
