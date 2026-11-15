@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a0f08" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    
+    <title>Impossible ABC — Storybook PoC</title>
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #06090f; overflow: hidden; touch-action: none; overscroll-behavior: none; }
+      #game { position: fixed; inset: 0; width: 100vw; height: 100dvh; }
+      #rotate { display: none; position: fixed; inset: 0; z-index: 10; background: #1a0f08; color: #f2d3a8;
+        font: bold 20px Georgia, "Times New Roman", serif; text-align: center; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
+      #rotate span { display: block; font-size: 48px; margin-bottom: 12px; }
+      @media (orientation: portrait) and (max-width: 900px) { #rotate { display: flex; } }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="rotate"><div><span>⟳</span>Pusingkan telefon ke landskap<br /><small>Rotate your phone to landscape</small></div></div>
+    <script type="module" src="../src/storybook/main.ts"></script>
+  </body>
+</html>
