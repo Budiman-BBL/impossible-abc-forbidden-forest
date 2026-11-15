@@ -23,10 +23,12 @@ async function boot(page: Page, errors: string[]): Promise<void> {
 }
 
 async function waitQuest(page: Page, pred: string): Promise<void> {
-  await page.waitForFunction(`(() => { const q = window.__ABC_SB__.quest; return ${pred}; })()`, null, { timeout: 15_000 });
+  await page.waitForFunction(`(() => { const q = window.__ABC_SB__.quest; return ${pred}; })()`, null, { timeout: 40_000 });
 }
 
 test("storybook slice: collect wood and stones, light the fire", async ({ page }) => {
+  // Software rendering on CI runners can drop to a few fps; the pick-up pose runs on game time.
+  test.setTimeout(180_000);
   const errors: string[] = [];
   await boot(page, errors);
   await expect(page.locator("#game canvas")).toBeVisible();
@@ -38,7 +40,7 @@ test("storybook slice: collect wood and stones, light the fire", async ({ page }
   const stones = picks.filter((p) => p.kind === "stone").slice(0, 2);
   let n = 0;
   for (const p of [...logs, ...stones]) {
-    await page.waitForFunction(() => !(window as unknown as { __ABC_SB__: { busy: boolean } }).__ABC_SB__.busy);
+    await page.waitForFunction(() => !(window as unknown as { __ABC_SB__: { busy: boolean } }).__ABC_SB__.busy, null, { timeout: 40_000 });
     await page.evaluate(([x, y]) => (window as unknown as { __ABC_SB__: Sb }).__ABC_SB__.goTo(x! + 20, y! + 6), [p.x, p.y]);
     await page.evaluate(() => (window as unknown as { __ABC_SB__: Sb }).__ABC_SB__.act());
     n++;
@@ -46,13 +48,13 @@ test("storybook slice: collect wood and stones, light the fire", async ({ page }
     else await waitQuest(page, `q.stones >= ${n - 5}`);
     await page.waitForTimeout(150);
   }
-  await page.waitForFunction(() => !(window as unknown as { __ABC_SB__: { busy: boolean } }).__ABC_SB__.busy);
+  await page.waitForFunction(() => !(window as unknown as { __ABC_SB__: { busy: boolean } }).__ABC_SB__.busy, null, { timeout: 40_000 });
   const c = await page.evaluate(() => (window as unknown as { __ABC_SB__: Sb }).__ABC_SB__.camp());
   await page.evaluate(([x, y]) => (window as unknown as { __ABC_SB__: Sb }).__ABC_SB__.goTo(x! + 10, y! + 55), [c.x, c.y]);
   await page.evaluate(() => (window as unknown as { __ABC_SB__: Sb }).__ABC_SB__.act());
   await waitQuest(page, "q.lit === true");
   const f0 = await fuel(page);
-  await page.waitForTimeout(1500);
+  await page.waitForFunction((f) => (window as unknown as { __ABC_SB__: Sb }).__ABC_SB__.fire.fuel < f, f0, { timeout: 40_000 });
   const f1 = await fuel(page);
   expect(f1).toBeLessThan(f0);
   expect(errors).toEqual([]);
