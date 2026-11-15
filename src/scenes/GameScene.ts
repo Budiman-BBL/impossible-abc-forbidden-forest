@@ -1,57 +1,40 @@
 import Phaser from "phaser";
 import { ATLAS, CHAR_WORLD_H_NISA, VERSION, WORLD_TO_SCREEN } from "../config";
 import { DESIGN_H, renderDpr } from "../ui/layout";
-import { CAMERA, CFG } from "../data/balance";
 import { CHARACTERS, characterById } from "../data/characters";
 import {
-  campLightR,
-  createFireState,
-  doUpgrade,
-  feedFire,
+  CAMERA,
+  CFG,
+  GameCore,
+  clamp,
+  dist,
   fireSpriteId,
-  nightIndex,
-  stepFire,
-  upgradeCost,
+  lightAt,
+  seedFromUrl,
+  type CoreEvent,
   type FireState,
-} from "../systems/campfire";
-import { isLit, lightAt, type LightSource } from "../systems/light";
-import { generateWorld, type Tree, type World } from "../systems/world";
-import { ang, clamp, dist } from "../utils/math";
+  type LightSource,
+  type Tree,
+  type World,
+} from "../core";
 import { FONT, PALETTE, css } from "../ui/palette";
 
-/** v2 drew 2 workers at the start (Afan, Unais), so at most 2 trees are chopped at once. */
-const MAX_CHOPS = 2;
+export type { HudState } from "../core";
+
 const DARK_LAYER_RES = 0.5; // darkness rendered at half resolution (plan: risk E)
 
-interface Chop {
-  tree: Tree;
-  t: number; // 0..1 progress
-}
-
-export interface HudState {
-  fuel: number;
-  fuelMax: number;
-  logs: number;
-  level: number;
-  night: number;
-  time: number;
-  upgradeCost: number | null;
-  out: boolean;
-  chops: number;
-}
-
 /**
- * Game: the v2 campfire loop in Phaser. Tap a lit tree to chop it (+2 kayu after 3.8 s),
+ * Game: the Phaser 2D view of the shared GameCore (src/core). Tap a lit tree to chop it (+2 kayu after 3.8 s),
  * tap the campfire to feed it, upgrade it from the HUD. Drag to pan, pinch/wheel to zoom.
  */
 export class GameScene extends Phaser.Scene {
+  private core!: GameCore;
   private world!: World;
   private fire!: FireState;
   private userZoom = 1;
   private treeSprites = new Map<number, Phaser.GameObjects.Image>();
   private stumpSprites = new Map<number, Phaser.GameObjects.Ellipse>();
   private campFire = new Map<string, Phaser.GameObjects.Image>();
-  private chops: Chop[] = [];
   private chopGfx!: Phaser.GameObjects.Graphics;
   private dark!: Phaser.GameObjects.RenderTexture;
   private brush!: Phaser.GameObjects.Image;
@@ -66,11 +49,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    const seedParam = new URLSearchParams(window.location.search).get("seed");
-    const seed = seedParam != null && !Number.isNaN(Number(seedParam)) ? Number(seedParam) : (Date.now() & 0xffff) ^ 0x9e37;
-    this.world = generateWorld(seed);
-    this.fire = createFireState();
-    this.chops = [];
+    const seed = seedFromUrl(window.location.search);
+    this.core = new GameCore(seed);
+    this.world = this.core.world;
+    this.fire = this.core.fire;
     this.treeSprites.clear();
     this.stumpSprites.clear();
     this.campFire.clear();
@@ -100,8 +82,7 @@ export class GameScene extends Phaser.Scene {
       world: { trees: this.world.trees.length, camps: this.world.camps.length },
       feed: () => this.tryFeed(),
       chopNearest: () => {
-        const main = this.world.camps[0]!;
-        const t = [...this.world.trees].sort((a, b) => dist(a.x, a.y, main.x, main.y) - dist(b.x, b.y, main.x, main.y))[0];
+        const t = this.core.nearestTreeToCamp();
         if (t) this.tryChop(t);
       },
     };
@@ -217,9 +198,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private lightSources(): LightSource[] {
-    const L: LightSource[] = [];
-    for (const c of this.world.camps) if (c.lit) L.push({ x: c.x, y: c.y, r: campLightR(this.fire, c) });
-    return L;
+    return this.core.lightSources();
   }
 
   private drawLighting(lights: LightSource[]): void {
@@ -356,35 +335,24 @@ export class GameScene extends Phaser.Scene {
 
   // ---------- actions ----------
   private tryFeed(): void {
-    const r = feedFire(this.fire, 1);
-    if (r.used) {
-      const m = this.world.camps[0]!;
-      this.puff(m.x + 8, m.y - 24, `+${r.used} kayu`, "#ffc878");
-    } else if (r.reason === "no-logs") this.toast("Tiada kayu. Tebang pokok dulu.");
-    else if (r.reason === "full") this.toast("Api sudah penuh.");
+    this.handle(this.core.feed());
   }
 
   private tryChop(t: Tree): void {
-    if (t.logs <= 0) return this.toast("Pokok ini sudah ditebang. Ia akan tumbuh semula.");
-    if (this.chops.some((c) => c.tree === t)) return;
-    if (!isLit(this.lightSources(), t.x, t.y)) return this.toast("Terlalu gelap di situ. Besarkan api dulu.");
-    if (this.chops.length >= MAX_CHOPS) return this.toast(`Hanya ${MAX_CHOPS} pokok boleh ditebang serentak.`);
-    this.chops.push({ tree: t, t: 0 });
+    this.handle(this.core.chop(t));
   }
 
   private tryUpgrade(): void {
-    const r = doUpgrade(this.fire);
-    if (r.ok) {
-      const m = this.world.camps[0]!;
-      this.puff(m.x, m.y - 40, `Api tahap ${r.level}!`, "#ffe08a");
-      const who = r.unlocks ? CHARACTERS.find((c) => c.id === r.unlocks)?.displayName : null;
-      this.toast(
-        who
-          ? `Cahaya makin luas. (${who} akan sertai kem dalam sprint akan datang.)`
-          : "Cahaya api semakin luas. Cikgu Nisa merestui kem.",
-      );
-    } else if (r.reason === "max") this.toast("Api sudah di tahap maksimum.");
-    else if (r.reason === "logs") this.toast(`Perlu ${r.cost} kayu untuk naik taraf.`);
+    this.handle(this.core.upgrade((id) => CHARACTERS.find((c) => c.id === id)?.displayName));
+  }
+
+  /** Show the core's feedback the 2D way. */
+  private handle(events: CoreEvent[]): void {
+    for (const ev of events) {
+      if (ev.type === "toast") this.toast(ev.text);
+      else if (ev.type === "puff") this.puff(ev.x, ev.y, ev.text, ev.color);
+      else if (ev.type === "gameover") this.events.emit("gameover", { time: ev.time });
+    }
   }
 
   private puff(x: number, y: number, text: string, color: string): void {
@@ -407,84 +375,12 @@ export class GameScene extends Phaser.Scene {
     const dt = Math.min(0.08, this.game.loop.rawDelta / 1000);
     this.animT += dt;
 
-    if (!this.fire.out) {
-      for (const ev of stepFire(this.fire, dt)) {
-        if (ev === "low") this.toast("Api semakin kecil! Masukkan kayu!");
-        if (ev === "out") this.events.emit("gameover", { time: this.fire.time });
-      }
-    }
+    this.handle(this.core.step(dt));
     const lights = this.lightSources();
-    if (!this.fire.out) {
-      this.updateTrees(dt);
-      this.updateChops(dt, lights);
-    }
-    this.updateEyes(dt, lights);
     this.updateVisuals();
     this.drawLighting(lights);
 
-    const hud: HudState = {
-      fuel: this.fire.fuel,
-      fuelMax: this.fire.fuelMax,
-      logs: this.fire.logs,
-      level: this.fire.level,
-      night: nightIndex(this.fire),
-      time: this.fire.time,
-      upgradeCost: upgradeCost(this.fire),
-      out: this.fire.out,
-      chops: this.chops.length,
-    };
-    this.registry.set("hud", hud);
-  }
-
-  private updateTrees(dt: number): void {
-    for (const t of this.world.trees) {
-      if (t.logs > 0) continue;
-      t.respawn += dt;
-      if (t.respawn >= CFG.TREE_RESPAWN) {
-        t.logs = t.maxLogs;
-        t.respawn = 0;
-      }
-    }
-  }
-
-  private updateChops(dt: number, lights: LightSource[]): void {
-    for (const c of [...this.chops]) {
-      if (!isLit(lights, c.tree.x, c.tree.y)) {
-        this.chops.splice(this.chops.indexOf(c), 1);
-        this.toast("Pokok itu sudah gelap. Tebangan dibatalkan.");
-        continue;
-      }
-      c.t += dt / CFG.CHOP;
-      if (c.t >= 1) {
-        this.chops.splice(this.chops.indexOf(c), 1);
-        this.fire.logs += c.tree.logs;
-        this.puff(c.tree.x, c.tree.y - 50, `+${c.tree.logs} kayu`, "#ffc878");
-        c.tree.logs = 0;
-        c.tree.respawn = 0;
-      }
-    }
-  }
-
-  private updateEyes(dt: number, lights: LightSource[]): void {
-    const W = CFG.WORLD;
-    const main = this.world.camps[0]!;
-    for (const e of this.world.eyes) {
-      e.x += e.vx * dt;
-      e.y += e.vy * dt;
-      if (Math.random() < 0.012) {
-        e.vx = (Math.random() - 0.5) * 16;
-        e.vy = (Math.random() - 0.5) * 16;
-      }
-      if (isLit(lights, e.x, e.y)) {
-        const a = ang(main.x, main.y, e.x, e.y);
-        e.x += Math.cos(a) * 40 * dt;
-        e.y += Math.sin(a) * 40 * dt;
-      }
-      if (e.x < 20 || e.x > W - 20) e.vx *= -1;
-      if (e.y < 20 || e.y > W - 20) e.vy *= -1;
-      e.x = clamp(e.x, 10, W - 10);
-      e.y = clamp(e.y, 10, W - 10);
-    }
+    this.registry.set("hud", this.core.hud());
   }
 
   private updateVisuals(): void {
@@ -509,7 +405,7 @@ export class GameScene extends Phaser.Scene {
     for (const c of this.critterSprites) c.img.y = c.baseY + Math.sin(this.animT * 2 + c.bob) * 1.1;
 
     this.chopGfx.clear();
-    for (const c of this.chops) {
+    for (const c of this.core.chops) {
       const x = c.tree.x;
       const y = c.tree.y - 60;
       this.chopGfx.fillStyle(PALETTE.ink, 0.75).fillCircle(x, y, 8);
