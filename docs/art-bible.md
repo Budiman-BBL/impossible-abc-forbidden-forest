@@ -11,11 +11,11 @@ Hand-drawn 2D, gothic storybook, organic ink outlines, expressive faces, muted e
 |---|---|---|
 | Cikgu Nisa | Leader / Guide | olive hijab, round glasses, khaki field jacket, lantern, book |
 | Affan | Resource Collector | blue cap, white tee with monkey print, shorts, backpack |
-| Ayan | Guardian | grey tee, shorts, bamboo spear, arms crossed |
-| Unais | Builder | white shirt, suspenders, jeans, leaf crown, axe |
-| Hannan | Torchbearer | red jacket, ponytail, satchel, pointing pose |
-| Asiya | Shaman | flower crown, teal cape, glowing purple magic |
-| Safiya | Shaman | flower crown, teal cape, feathered staff |
+| Ayan | Guardian | grey tee, shorts, backpack, arms crossed, stern look |
+| Unais | Builder | cream shirt, suspenders, rolled jeans, leaf in hair, long spear |
+| Hannan | Torchbearer | red hooded jacket, single ponytail, satchel, pointing pose |
+| Asiya | Shaman | flower crown, tattered teal cape, glowing purple magic in hand |
+| Safiya | Shaman | flower crown, tattered teal cape, staff with feathered tip |
 
 ## UI palette (sampled from style sheet v2, used in `src/ui/palette.ts`)
 | Name | Hex |
