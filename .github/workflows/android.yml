@@ -30,7 +30,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - run: npm ci
       - name: Build web
-        run: npm run build
+        run: ABC_TARGET=2d npm run build
       - name: Copy web build into the Android project
         run: npx cap sync android
       - name: Decode signing keystore
