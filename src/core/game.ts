@@ -123,6 +123,14 @@ export class GameCore {
     return [{ type: "chopStart", treeId: t.id }];
   }
 
+  /** Stop chopping a tree (the 3D build cancels when the player walks away). No-op if not chopping. */
+  cancelChop(treeId: number): CoreEvent[] {
+    const i = this.chops.findIndex((c) => c.tree.id === treeId);
+    if (i < 0) return [];
+    this.chops.splice(i, 1);
+    return [{ type: "chopCancel", treeId }];
+  }
+
   upgrade(nameOf?: UnlockNamer): CoreEvent[] {
     const r = doUpgrade(this.fire);
     if (r.ok) {
