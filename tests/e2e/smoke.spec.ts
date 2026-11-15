@@ -62,9 +62,21 @@ test("launches without errors and the campfire loop runs", async ({ page }, info
 test("chopping a lit tree gives wood; fire out shows game over and restart works", async ({ page }) => {
   const errors: string[] = [];
   await boot(page, errors);
-  await page.evaluate(() => (window as unknown as { __ABC__: { chopNearest(): void } }).__ABC__.chopNearest());
-  // v2 CHOP = 3.8 s, TREE_LOGS = 2
-  await expect.poll(async () => (await abc(page)).logs, { timeout: 15_000 }).toBe(7);
+  test.setTimeout(120_000);
+  const t0 = await page.evaluate(() => {
+    const a = (window as unknown as { __ABC__: Abc & { chopNearest(): void } }).__ABC__;
+    a.chopNearest();
+    return a.fire.time;
+  });
+  // v2 CHOP = 3.8 s of game time, TREE_LOGS = 2. Wait on game time, not wall time: CI runners
+  // render big viewports in software and can drop below 12.5 fps, where the 0.08 s step cap
+  // makes game time run slower than real time.
+  await page.waitForFunction(
+    (start) => (window as unknown as { __ABC__: Abc }).__ABC__.fire.time > start + 4.2,
+    t0,
+    { timeout: 90_000 },
+  );
+  expect((await abc(page)).logs).toBe(7);
 
   await page.evaluate(() => {
     (window as unknown as { __ABC__: Abc }).__ABC__.fire.fuel = 0.01;
