@@ -67,7 +67,7 @@ export class CampHud extends Phaser.Scene {
     this.abcText = this.add.text(0, 0, `ABC 0/${CAMP_CFG.letters}`, { fontFamily: SERIF, fontStyle: "bold", color: "#e9d6a6", stroke: "#1b0e05" }).setOrigin(1, 0.5);
     this.act = this.add.image(0, 0, ATLAS_KEY, "btn_hand").setInteractive({ useHandCursor: true });
     this.actLabel = this.add.text(0, 0, "", { fontFamily: SERIF, fontStyle: "bold", color: CREAM, stroke: "#2a1608", align: "center" }).setOrigin(0.5, 0);
-    this.act.on("pointerdown", () => { this.uiHit = true; this.game2.input2.action = true; this.tweens.add({ targets: this.act, scale: this.act.scale * 0.9, duration: 70, yoyo: true }); });
+    this.act.on("pointerdown", () => { this.uiHit = true; if (this.panel) return; this.game2.input2.action = true; this.tweens.add({ targets: this.act, scale: this.act.scale * 0.9, duration: 70, yoyo: true }); });
     this.btns.bina = this.mkBtn("Bina", "⚒", () => this.togglePanel("bina"));
     this.btns.beg = this.mkBtn("Beg", "🎒", () => this.togglePanel("beg"));
     this.btns.peta = this.mkBtn("Peta", "🗺", () => this.toast("Peta dibuka dalam sprint akan datang. Kabus masih menutup hutan."));
@@ -99,8 +99,8 @@ export class CampHud extends Phaser.Scene {
     this.input.on("pointerupoutside", up);
     const kb = this.input.keyboard!;
     this.keys = kb.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,B,I") as Record<string, Phaser.Input.Keyboard.Key>;
-    kb.on("keydown-E", () => (this.game2.input2.action = true));
-    kb.on("keydown-SPACE", () => (this.overlay ? this.dismissTitle() : (this.game2.input2.action = true)));
+    kb.on("keydown-E", () => { if (!this.panel) this.game2.input2.action = true; });
+    kb.on("keydown-SPACE", () => { if (this.overlay) this.dismissTitle(); else if (!this.panel) this.game2.input2.action = true; });
     kb.on("keydown-B", () => this.togglePanel("bina"));
     kb.on("keydown-I", () => this.togglePanel("beg"));
 

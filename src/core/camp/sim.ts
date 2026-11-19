@@ -6,10 +6,11 @@
  * The renderer moves Affan, writes `player`, calls step() and the actions, and draws what it reads back.
  */
 import { CAMP_CFG, emptyInv, RESOURCES, type Inventory, type Res } from "./config";
-import { makeCampLayout, type CampLayout, type Pt, type ResNode } from "./layout";
+import { makeCampLayout, type CampLayout, type FenceState, type Pt, type ResNode } from "./layout";
+import { NisaBrain } from "./nisa";
 import { darknessAt, phaseAt, sunStrength, T_MALAM, T_PAGI, type Phase } from "./clock";
 
-export const RES_LABEL: Record<Res, string> = { kayu: "Kayu", batu: "Batu", dahan: "Dahan", getah: "Getah", beri: "Beri" };
+export const RES_LABEL: Record<Res, string> = { kayu: "Kayu", batu: "Batu", dahan: "Dahan", beri: "Beri" };
 
 export interface FireState { lit: boolean; everLit: boolean; fuel: number; level: number }
 export type WolfMode = "prowl" | "chase" | "retreat" | "leave" | "gone";
@@ -50,6 +51,9 @@ export class CampSim {
   readonly store: Inventory = emptyInv();
   readonly player = { x: 0, y: 0, facing: "up" as "up" | "down" | "left" | "right" };
   readonly lanternSlots: boolean[] = new Array<boolean>(C.lanternSlots).fill(false);
+  readonly nisa: NisaBrain;
+  /** per fence segment (layout.fence order); Night 1 starts weak/broken, Day 2 repairs (later) */
+  readonly fenceStates: FenceState[];
   wolves: Wolf[] = [];
   hearts: number = C.hearts;
   day = 1;
@@ -63,7 +67,10 @@ export class CampSim {
   private hurtCd = 0;
 
   constructor(seed: number) {
-    this.layout = makeCampLayout(seed);
+    this.layout = makeCampLayout();
+    void seed; // the map is fixed; the seed stays in the API for later per-run variety (weather, wolves)
+    this.nisa = new NisaBrain(this.layout.nisaRoute);
+    this.fenceStates = this.layout.fence.map((f) => f.state);
     this.player.x = this.layout.spawn.x;
     this.player.y = this.layout.spawn.y;
   }
@@ -114,7 +121,8 @@ export class CampSim {
       return { kind: "feed", has: this.total("kayu") > 0 };
     }
     if (dist(p, L.storage) < C.storageUseR) return { kind: "store" };
-    if (dist(p, L.nisa) < C.nisaTalkR) return { kind: "talk" };
+    // seated behind the table she is a little further away, so the reach is a bit longer
+    if (dist(p, this.nisa) < C.nisaTalkR + (this.nisa.mode === "sit" ? 35 : 0)) return { kind: "talk" };
     for (let i = 0; i < L.lanternSlots.length; i++) if (dist(p, L.lanternSlots[i]!) < 46) return { kind: "slot", index: i };
     return null;
   }
@@ -229,11 +237,13 @@ export class CampSim {
     if (this.outcome === "won") {
       // epilogue only: dawn keeps brightening and the wolves keep walking away
       this.t += dt;
+      this.nisa.step(dt, this.player);
       this.stepWolves(dt, ev);
       return [];
     }
     if (this.outcome !== "playing") return ev;
     const prevT = this.t;
+    this.nisa.step(dt, this.player);
     this.t += dt;
     const ph = phaseAt(this.t);
     if (ph !== this.phase) {
@@ -276,7 +286,7 @@ export class CampSim {
 
   // ------------------------------------------------------------------ wolves (fear the light)
   private spawnWolves(): void {
-    const E = this.layout.exits;
+    const E = this.layout.wolfSpawn;
     this.wolves = [];
     for (let i = 0; i < C.wolf.count; i++) {
       const e = E[i % E.length]!;

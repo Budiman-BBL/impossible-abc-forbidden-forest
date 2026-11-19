@@ -2,7 +2,7 @@
  * Sprint 1 "The Living Camp" numbers. All are starting values to tune after play (World & UI Design v1.0, §3).
  * Times are seconds of game time, distances are world units (Affan is 76 units tall, walks 118 units/s).
  */
-export const RESOURCES = ["kayu", "batu", "dahan", "getah", "beri"] as const;
+export const RESOURCES = ["kayu", "batu", "dahan", "beri"] as const;
 export type Res = (typeof RESOURCES)[number];
 export type Inventory = Record<Res, number>;
 
@@ -26,10 +26,10 @@ export const CAMP_CFG = {
   /** Bina menu, Bab 1: fire upgrade (Batu) is active; the fence (Dahan) unlocks in Sprint 2 */
   upgrade: { batu: 3, burnMul: 0.7, radiusMul: 1.18, maxLevel: 2 },
   fence: { partialDahan: 8, fullDahan: 16, unlockSprint: 2 },
-  carry: { kayu: 10, batu: 6, dahan: 10, getah: 6, beri: 5 } as Inventory,
+  carry: { kayu: 10, batu: 6, dahan: 10, beri: 5 } as Inventory,
   hearts: 3,
   berryHeal: 1,
-  respawn: { kayu: 45, batu: 75, dahan: 50, getah: 999, beri: 70 } as Inventory,
+  respawn: { kayu: 45, batu: 75, dahan: 50, beri: 70 } as Inventory,
   /** Bina works and the storage is used inside this radius around the fire */
   campR: 330,
   pickR: 52,
@@ -45,5 +45,5 @@ export const CAMP_CFG = {
 } as const;
 
 export function emptyInv(): Inventory {
-  return { kayu: 0, batu: 0, dahan: 0, getah: 0, beri: 0 };
+  return { kayu: 0, batu: 0, dahan: 0, beri: 0 };
 }

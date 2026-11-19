@@ -4,7 +4,7 @@
  * Affan, and turns sim events into feedback. The HUD is a separate overlay scene (CampHud).
  */
 import Phaser from "phaser";
-import { CAMP_CFG, CampSim, RES_LABEL, SAVE_KEY, toSave, type Action, type CampEvent, type Res } from "../core/camp";
+import { CAMP_CFG, CampSim, RES_LABEL, SAVE_KEY, toSave, walkable, walkDist, type Action, type CampEvent, type CampLayout, type FenceSeg, type FenceState, type PropKind, type Pt, type Res } from "../core/camp";
 import { seedFromUrl } from "../core/game";
 import { Affan, ATLAS_KEY, preloadAffan, type Facing } from "./affan";
 import { CAMP_ATLAS, Nisa } from "./nisa";
@@ -14,8 +14,10 @@ import atlasPng from "./assets/storybook.png";
 import atlasJson from "./assets/storybook.json";
 import campPng from "./assets/camp.png";
 import campJson from "./assets/camp.json";
-import grassJpg from "./assets/grass.jpg";
-import dirtPng from "./assets/dirt.png";
+import camp2Png from "./assets/camp2.png";
+import camp2Json from "./assets/camp2.json";
+import groundGrass from "./assets/ground_grass.jpg";
+import groundDirt from "./assets/ground_dirt.jpg";
 import titleJpg from "./assets/camp_title.jpg";
 import { POC_VERSION } from "./version";
 
@@ -26,12 +28,32 @@ const DUSK = new Phaser.Display.Color(70, 34, 18);
 
 export interface CampInput { x: number; y: number; action: boolean }
 
+export const CAMP2_ATLAS = "camp2";
+/** world units per mask pixel (soft masks are drawn small and scaled up) */
+const DIRT_M = 6;
+const SHADE_M = 16;
+
 const NODE_FRAME: Record<Res, { key: string; s: number; atlas: string }> = {
   kayu: { key: "log", s: 0.3, atlas: ATLAS_KEY },
   batu: { key: "stone", s: 0.34, atlas: ATLAS_KEY },
   dahan: { key: "sticks", s: 0.32, atlas: ATLAS_KEY },
-  getah: { key: "stone", s: 0.3, atlas: ATLAS_KEY },
-  beri: { key: "bush", s: 0.42, atlas: ATLAS_KEY },
+  beri: { key: "berry_bush", s: 0.42, atlas: CAMP2_ATLAS },
+};
+
+const PROP_ART: Record<PropKind, { atlas: string; frame: string; s: number; oy: number }> = {
+  tree_oak: { atlas: ATLAS_KEY, frame: "tree_oak", s: 0.46, oy: 0.93 },
+  tree_pine1: { atlas: ATLAS_KEY, frame: "tree_pine1", s: 0.46, oy: 0.93 },
+  tree_pine2: { atlas: ATLAS_KEY, frame: "tree_pine2", s: 0.46, oy: 0.93 },
+  fern: { atlas: ATLAS_KEY, frame: "fern", s: 0.5, oy: 0.85 },
+  stump: { atlas: ATLAS_KEY, frame: "stump", s: 0.55, oy: 0.85 },
+  rock_big: { atlas: ATLAS_KEY, frame: "rock_big", s: 0.55, oy: 0.85 },
+  rocks_cluster: { atlas: ATLAS_KEY, frame: "rocks_cluster", s: 0.55, oy: 0.85 },
+  bush: { atlas: CAMP2_ATLAS, frame: "bush", s: 0.45, oy: 0.88 },
+  grass_tuft: { atlas: CAMP2_ATLAS, frame: "grass_tuft", s: 0.33, oy: 0.85 },
+  flowers: { atlas: CAMP2_ATLAS, frame: "flowers", s: 0.36, oy: 0.85 },
+  boulder: { atlas: CAMP2_ATLAS, frame: "boulder", s: 0.5, oy: 0.86 },
+  rocks_moss: { atlas: CAMP2_ATLAS, frame: "rocks_moss", s: 0.45, oy: 0.82 },
+  stump2: { atlas: CAMP2_ATLAS, frame: "stump2", s: 0.45, oy: 0.85 },
 };
 
 export class CampScene extends Phaser.Scene {
@@ -44,7 +66,6 @@ export class CampScene extends Phaser.Scene {
   private vel = new Phaser.Math.Vector2();
   private camPos = new Phaser.Math.Vector2();
   private nodeSprites = new Map<number, Phaser.GameObjects.Image>();
-  private berryDots = new Map<number, Phaser.GameObjects.Image>();
   private colliders: { x: number; y: number; r: number }[] = [];
   private trees: Phaser.GameObjects.Image[] = [];
   private fireImgs!: { lit: Phaser.GameObjects.Image; unlit: Phaser.GameObjects.Image; embers: Phaser.GameObjects.Image };
@@ -58,7 +79,7 @@ export class CampScene extends Phaser.Scene {
   private eyes!: Phaser.GameObjects.Graphics;
   private wolves = new Map<number, WolfSprite>();
   private flies: { s: Phaser.GameObjects.Image; x: number; y: number; ph: number; sp: number }[] = [];
-  private fog: Phaser.GameObjects.TileSprite[] = [];
+  fog: Phaser.GameObjects.TileSprite[] = [];
   private facingCandidate: Facing = "up";
   private facingHold = 0;
   private knock = new Phaser.Math.Vector2();
@@ -73,8 +94,9 @@ export class CampScene extends Phaser.Scene {
     this.load.atlas(ATLAS_KEY, atlasPng, atlasJson);
     this.load.atlas(CAMP_ATLAS, campPng, campJson);
     preloadAffan(this);
-    this.load.image("sbGrass", grassJpg);
-    this.load.image("sbDirt", dirtPng);
+    this.load.atlas(CAMP2_ATLAS, camp2Png, camp2Json);
+    this.load.image("gGrass", groundGrass);
+    this.load.image("gDirt", groundDirt);
     this.load.image("campTitle", titleJpg);
   }
 
@@ -82,53 +104,41 @@ export class CampScene extends Phaser.Scene {
     makeTextures(this);
     const seed = seedFromUrl(location.search);
     this.sim = new CampSim(seed);
-    const L = this.sim.layout, F = L.fire, W = L.world;
+    const L = this.sim.layout, F = L.fire, W = L.worldW, H = L.worldH;
 
-    // ground: painted grass, a worn clearing around the fire, dirt paths out of the three exits
-    this.add.tileSprite(W / 2, W / 2, W + 1400, W + 1400, "sbGrass").setTileScale(0.5).setDepth(-20000);
-    const dirt = (x: number, y: number, s: number, a = 1) =>
-      this.add.image(x, y, "sbDirt").setScale(s * 0.5).setAlpha(a).setDepth(-19000).setRotation(((x * 13 + y * 7) % 628) / 100);
-    dirt(F.x, F.y + 10, 2.6, 0.95);
-    dirt(F.x - 200, F.y - 120, 1.3, 0.8);
-    dirt(F.x + 210, F.y - 120, 1.3, 0.8);
-    for (const e of L.exits) {
-      const n = Math.ceil(Math.hypot(e.x - F.x, e.y - F.y) * 1.5 / 50);
-      for (let k = 3; k <= n; k++) {
-        const t = k / n * 1.5;
-        dirt(F.x + (e.x - F.x) * t + Math.sin(k) * 14, F.y + (e.y - F.y) * t, 0.42, 0.9);
-      }
-    }
-    // forest props
+    // ground: painted grass everywhere, darker forest floor away from the paths, and ONE flat packed-dirt
+    // layer (clearing + trails + stony valley) cut out by a soft mask drawn from the shared layout
+    this.add.tileSprite(W / 2, H / 2, W + 1600, H + 1600, "gGrass").setTileScale(0.62).setDepth(-20000);
+    this.add.image(0, 0, this.makeShadeMask(L)).setOrigin(0).setScale(SHADE_M).setDepth(-19900);
+    const dirt = this.add.tileSprite(W / 2, H / 2, W, H, "gDirt").setTileScale(0.34).setDepth(-19000);
+    const maskImg = this.make.image({ x: 0, y: 0, key: this.makeDirtMask(L), add: false }).setOrigin(0).setScale(DIRT_M);
+    dirt.setMask(new Phaser.Display.Masks.BitmapMask(this, maskImg));
+    this.drawLetterSlot(L.letterSlot);
+
+    // forest + zone props
     for (const p of L.props) {
       const isTree = p.kind.startsWith("tree");
-      const img = this.add.image(p.x, p.y, ATLAS_KEY, p.kind).setOrigin(0.5, isTree ? 0.93 : 0.85).setFlipX(p.flip);
-      const base = isTree ? 0.46 : p.kind === "fern" ? 0.5 : 0.55;
-      img.setScale(base * p.s).setDepth(p.y);
+      const def = PROP_ART[p.kind];
+      const img = this.add.image(p.x, p.y, def.atlas, def.frame).setOrigin(0.5, def.oy).setFlipX(p.flip);
+      img.setScale(def.s * p.s).setDepth(p.y);
       if (isTree) this.trees.push(img);
-      if (p.r > 0) this.colliders.push({ x: p.x, y: p.y, r: p.r * p.s });
+      if (p.kind === "grass_tuft") img.setTint(0xa8c890); // the source tuft is near-black; keep it a grass green
     }
-    // camp objects (Camp Object art, placed per the approved blueprint)
-    const obj = (x: number, y: number, frame: string, s: number, oy = 0.88, flip = false) =>
-      this.add.image(x, y, CAMP_ATLAS, frame).setOrigin(0.5, oy).setScale(s).setFlipX(flip).setDepth(y);
-    obj(L.tent.x, L.tent.y, "tent", 0.44, 0.86);
-    this.colliders.push({ x: L.tent.x - 30, y: L.tent.y - 6, r: 48 }, { x: L.tent.x + 40, y: L.tent.y - 6, r: 40 });
+    for (const b of L.blockers) this.colliders.push(b);
+
+    // camp objects
+    const obj = (x: number, y: number, frame: string, s: number, oy = 0.88, flip = false, atlas = CAMP_ATLAS) =>
+      this.add.image(x, y, atlas, frame).setOrigin(0.5, oy).setScale(s).setFlipX(flip).setDepth(y);
+    for (const t of L.tents) obj(t.x, t.y, t.kind, t.s, 0.86, !!t.flip, CAMP2_ATLAS);
+    for (const f of L.furniture) obj(f.x, f.y, f.kind, f.s, f.kind === "table" ? 0.8 : 0.82, false, CAMP2_ATLAS);
     this.rack = obj(L.storage.x, L.storage.y, "storage_rack_empty", 0.36, 0.9);
-    this.colliders.push({ x: L.storage.x, y: L.storage.y - 8, r: 40 });
     obj(L.nisaLantern.x, L.nisaLantern.y, "lantern_post_lit", 0.3, 0.97);
-    this.colliders.push({ x: L.nisaLantern.x - 14, y: L.nisaLantern.y, r: 8 });
-    for (const s of L.lanternSlots) {
-      obj(s.x, s.y, "lantern_post_empty", 0.3, 0.97);
-      this.colliders.push({ x: s.x - 14, y: s.y, r: 9 });
-    }
-    for (const f of L.fence) {
-      const im = obj(f.x, f.y, f.kind, f.s, 0.85, !!f.flip);
-      for (let k = -1; k <= 1; k++) this.colliders.push({ x: f.x + k * im.displayWidth * 0.33, y: f.y - 4, r: 12 });
-    }
-    for (const d of L.decor) {
-      obj(d.x, d.y, d.kind, d.s, 0.85);
-      if (d.r > 0) this.colliders.push({ x: d.x, y: d.y, r: d.r });
-      if (d.kind === "glowing_mushroom_cluster") {
-        this.shroomGlows.push(this.add.image(d.x, d.y - 22, "sbGlowW").setTint(0x70ffc8).setBlendMode(Phaser.BlendModes.ADD).setDepth(D_DARK + 1).setScale(0.9).setAlpha(0));
+    for (const s of L.lanternSlots) obj(s.x, s.y, "lantern_post_empty", 0.3, 0.97);
+    this.drawFence(L.fence, this.sim.fenceStates);
+    for (const d of L.decor) obj(d.x, d.y, d.kind, d.s, 0.85);
+    for (const p of L.props) {
+      if (p.kind === "flowers" && Math.hypot(p.x - F.x, p.y - F.y) < 900 && (p.x * 7 + p.y) % 3 < 1) {
+        this.shroomGlows.push(this.add.image(p.x, p.y - 8, "sbGlowW").setTint(0x9fe8ff).setBlendMode(Phaser.BlendModes.ADD).setDepth(D_DARK + 1).setScale(0.45).setAlpha(0));
       }
     }
     // the one main campfire
@@ -137,7 +147,6 @@ export class CampScene extends Phaser.Scene {
       embers: obj(F.x, F.y, "campfire_embers", 0.34, 0.6).setVisible(false),
       lit: obj(F.x, F.y, "campfire_lit", 0.34, 0.72).setVisible(false),
     };
-    this.colliders.push({ x: F.x, y: F.y, r: 40 });
     this.sparks = this.add.particles(F.x, F.y - 26, "sbSpark", {
       speedY: { min: -70, max: -30 }, speedX: { min: -16, max: 16 }, lifespan: { min: 700, max: 1500 },
       scale: { start: 0.9, end: 0 }, alpha: { start: 1, end: 0 }, frequency: 70, blendMode: "ADD", gravityY: -10,
@@ -150,15 +159,13 @@ export class CampScene extends Phaser.Scene {
       if (n.kind === "kayu") img.setRotation(((n.id * 37) % 60 - 30) / 100);
       if (n.kind === "beri") {
         this.colliders.push({ x: n.x, y: n.y, r: 18 });
-        this.berryDots.set(n.id, this.add.image(n.x + 6, n.y - 26, "sbBerry").setScale(0.55).setDepth(n.y + 1));
       } else {
         this.tweens.add({ targets: img, y: n.y - 3, duration: 900 + n.id * 40, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       }
       this.nodeSprites.set(n.id, img);
     }
     // characters
-    this.nisa = new Nisa(this, L.nisa.x, L.nisa.y);
-    this.colliders.push({ x: L.nisa.x, y: L.nisa.y, r: 14 });
+    this.nisa = new Nisa(this, this.sim.nisa, L.furniture);
     this.affan = new Affan(this, L.spawn.x, L.spawn.y);
     this.affan.setFacing("up", this);
     this.camPos.set(L.spawn.x, L.spawn.y - 40);
@@ -176,7 +183,10 @@ export class CampScene extends Phaser.Scene {
     }
     for (let i = 0; i < 14; i++) {
       const a = (i / 14) * Math.PI * 2;
-      this.outsideEyes.push({ x: F.x + Math.cos(a) * (620 + (i % 3) * 120), y: F.y + Math.sin(a) * (520 + (i % 2) * 110), ph: i * 1.7 });
+      // red eyes sit in the forest, never on the open ground
+      let r = 640 + (i % 3) * 110, x = F.x + Math.cos(a) * r, y = F.y + Math.sin(a) * r * 0.85;
+      while (walkDist({ x, y }) < 60 && r < 1400) { r += 40; x = F.x + Math.cos(a) * r; y = F.y + Math.sin(a) * r * 0.85; }
+      this.outsideEyes.push({ x, y, ph: i * 1.7 });
     }
     for (let i = 0; i < 2; i++) {
       this.fog.push(this.add.tileSprite(0, 0, w, h * 0.45, "sbFog").setOrigin(0, 1).setScrollFactor(0).setDepth(D_DARK + 3).setAlpha(i ? 0.25 : 0.45));
@@ -188,7 +198,9 @@ export class CampScene extends Phaser.Scene {
     this.exposeTestHooks();
   }
 
-  private applyZoom(): void { this.cameras.main.setZoom(this.scale.height / 310); }
+  /** test/screenshot hook: a fixed camera zoom (null = normal) */
+  zoomOverride: number | null = null;
+  applyZoom(): void { this.cameras.main.setZoom(this.zoomOverride ?? this.scale.height / 310); }
 
   private onResize(): void {
     const { width: w, height: h } = this.scale;
@@ -280,6 +292,99 @@ export class CampScene extends Phaser.Scene {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(toSave(this.sim))); } catch { /* storage may be unavailable */ }
   }
 
+  /** Darker forest floor away from the open ground (low-res, scaled up = soft). */
+  private makeShadeMask(L: CampLayout): string {
+    const key = "campShade", w = Math.ceil(L.worldW / SHADE_M), h = Math.ceil(L.worldH / SHADE_M);
+    if (this.textures.exists(key)) this.textures.remove(key);
+    const t = this.textures.createCanvas(key, w, h)!;
+    const ctx = t.getContext(), img = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const d = walkDist({ x: (x + 0.5) * SHADE_M, y: (y + 0.5) * SHADE_M });
+      const a = Math.max(0, Math.min(0.62, (d + 20) / 420)) + Math.max(0, Math.min(0.2, (d - 700) / 1200));
+      const i = (y * w + x) * 4;
+      img.data[i] = 8; img.data[i + 1] = 22; img.data[i + 2] = 14; img.data[i + 3] = Math.round(a * 255);
+    }
+    ctx.putImageData(img, 0, 0);
+    t.refresh();
+    return key;
+  }
+
+  /** Where the packed dirt shows: the flat camp clearing, the three trails, the stony valley. */
+  private makeDirtMask(L: CampLayout): string {
+    const key = "campDirtMask", w = Math.ceil(L.worldW / DIRT_M), h = Math.ceil(L.worldH / DIRT_M);
+    if (this.textures.exists(key)) this.textures.remove(key);
+    const t = this.textures.createCanvas(key, w, h)!;
+    const ctx = t.getContext();
+    const k = 1 / DIRT_M;
+    ctx.filter = "blur(2px)";
+    // clearing: solid, with a soft worn rim
+    const F = L.fire, R = L.clearingR;
+    const g = ctx.createRadialGradient(F.x * k, F.y * k, 0, F.x * k, F.y * k, (R + 34) * k);
+    g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(R / (R + 34) - 0.04, "rgba(255,255,255,1)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(F.x * k, F.y * k, (R + 34) * k, 0, Math.PI * 2); ctx.fill();
+    // trails: a tapering band of dirt, slightly softer deeper in
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    for (const tr of L.trails) {
+      const n = tr.pts.length - 1;
+      for (let i = 0; i < n; i++) {
+        const a = tr.pts[i]!, b = tr.pts[i + 1]!;
+        ctx.strokeStyle = `rgba(255,255,255,${(1 - (i / n) * 0.25).toFixed(2)})`;
+        ctx.lineWidth = (tr.w0 + (tr.w1 - tr.w0) * ((i + 0.5) / n)) * 0.86 * k;
+        ctx.beginPath(); ctx.moveTo(a.x * k, a.y * k); ctx.lineTo(b.x * k, b.y * k); ctx.stroke();
+      }
+    }
+    for (const a of L.areas) {
+      const alpha = a.ground === "stony" ? 0.9 : a.ground === "dirt" ? 0.75 : 0;
+      if (alpha <= 0) continue;
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.beginPath(); ctx.ellipse(a.x * k, a.y * k, a.rx * 0.92 * k, a.ry * 0.92 * k, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.filter = "none";
+    t.refresh();
+    return key;
+  }
+
+  /** Letter-A slot beside the fire: a flat stone with an A-shaped groove (filled when A is found, later). */
+  private drawLetterSlot(p: Pt): void {
+    const g = this.add.graphics().setDepth(-18000);
+    g.fillStyle(0x000000, 0.25).fillEllipse(p.x + 2, p.y + 4, 46, 22);
+    g.fillStyle(0x8f8a80, 1).fillEllipse(p.x, p.y, 44, 22);
+    g.lineStyle(2, 0x3a2e22, 1).strokeEllipse(p.x, p.y, 44, 22);
+    g.fillStyle(0xa9a398, 1).fillEllipse(p.x - 3, p.y - 2, 30, 12);
+    g.lineStyle(2.5, 0x4a3a2a, 1);
+    g.beginPath(); g.moveTo(p.x - 8, p.y + 6); g.lineTo(p.x, p.y - 7); g.lineTo(p.x + 8, p.y + 6); g.strokePath();
+    g.beginPath(); g.moveTo(p.x - 4, p.y + 1); g.lineTo(p.x + 4, p.y + 1); g.strokePath();
+  }
+
+  /** Night-1 fence: leaning posts and sagging single rails; broken pieces lie on the ground; gaps stay open. */
+  private drawFence(segs: FenceSeg[], states: FenceState[]): void {
+    const posts = new Map<string, Pt>();
+    const lean = (id: number) => (((id * 53) % 17) / 17 - 0.5) * 0.3;
+    segs.forEach((f, i) => {
+      const st = states[i];
+      if (st === "missing" || st === undefined) return;
+      const ang = Math.atan2(f.b.y - f.a.y, f.b.x - f.a.x), len = Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y);
+      const mid = { x: (f.a.x + f.b.x) / 2, y: (f.a.y + f.b.y) / 2 };
+      if (st === "damaged") {
+        // one post left standing crooked, its rail fallen in the grass
+        const p = f.id % 2 ? f.a : f.b;
+        posts.set(`${Math.round(p.x)},${Math.round(p.y)}`, p);
+        this.add.image(mid.x, mid.y + 4, CAMP2_ATLAS, "fence_rail").setScale((len * 0.8) / 107, 0.55).setRotation(ang + 0.18).setDepth(mid.y - 30);
+        return;
+      }
+      for (const p of [f.a, f.b]) posts.set(`${Math.round(p.x)},${Math.round(p.y)}`, p);
+      const sag = 5 + (f.id % 3) * 3;
+      const rail = this.add.image(mid.x, mid.y - 33 + sag, CAMP2_ATLAS, "fence_rail").setScale(len / 107, 0.55).setRotation(ang + (f.id % 2 ? 0.05 : -0.05));
+      rail.setDepth(mid.y + 1);
+      if (st === "solid") this.add.image(mid.x, mid.y - 14, CAMP2_ATLAS, "fence_rail").setScale(len / 107, 0.55).setRotation(ang).setDepth(mid.y + 1);
+    });
+    let id = 0;
+    for (const p of posts.values()) {
+      this.add.image(p.x, p.y, CAMP2_ATLAS, "fence_post").setOrigin(0.5, 0.96).setScale(0.38).setRotation(lean(id++)).setDepth(p.y);
+    }
+  }
+
   update(_t: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.08);
     this.t += dt;
@@ -305,8 +410,17 @@ export class CampScene extends Phaser.Scene {
       const dx = nx - c.x, dy = (ny - c.y) * 1.6, d = Math.hypot(dx, dy), m = c.r + 14;
       if (d < m && d > 0.001) { nx = c.x + (dx / d) * m; ny = c.y + (dy / d) * m / 1.6; }
     }
-    const b = sim.layout.bounds, bd = Math.hypot(nx - b.cx, ny - b.cy);
-    if (bd > b.r) { nx = b.cx + ((nx - b.cx) / bd) * b.r; ny = b.cy + ((ny - b.cy) / bd) * b.r; }
+    if (sim.nisa.mode !== "sit") {
+      const dx = nx - sim.nisa.x, dy = (ny - sim.nisa.y) * 1.6, d = Math.hypot(dx, dy), m = 26;
+      if (d < m && d > 0.001) { nx = sim.nisa.x + (dx / d) * m; ny = sim.nisa.y + (dy / d) * m / 1.6; }
+    }
+    // stay on open ground (camp, trails, zones); slide along the forest edge
+    const ox = this.affan.x, oy = this.affan.y;
+    if (!walkable(nx, ny) && walkable(ox, oy)) {
+      if (walkable(nx, oy)) ny = oy;
+      else if (walkable(ox, ny)) nx = ox;
+      else { nx = ox; ny = oy; }
+    }
     this.affan.root.setPosition(nx, ny).setDepth(ny);
     sim.player.x = nx; sim.player.y = ny;
     const speed = Math.hypot(this.vel.x, this.vel.y);
@@ -318,7 +432,7 @@ export class CampScene extends Phaser.Scene {
     }
     sim.player.facing = this.affan.facing;
     this.affan.update(dt, speed / WALK);
-    this.nisa.update(dt, nx, ny);
+    this.nisa.update(dt);
     for (const tr of this.trees) {
       const behind = ny < tr.y - 4 && ny > tr.y - tr.displayHeight * 0.95 && Math.abs(nx - tr.x) < tr.displayWidth * 0.42;
       const a = behind ? 0.42 : 1;
@@ -331,7 +445,8 @@ export class CampScene extends Phaser.Scene {
       const img = this.nodeSprites.get(n.id);
       if (!img) continue;
       if (n.kind === "beri") {
-        this.berryDots.get(n.id)?.setVisible(n.amount > 0);
+        const fr = n.amount > 0 ? "berry_bush" : "bush";
+        if (img.frame.name !== fr) img.setFrame(fr);
       } else if (n.amount > 0 && (!img.visible || img.alpha < 1)) {
         this.tweens.killTweensOf(img);
         img.setVisible(true).setAlpha(1).setPosition(n.x, n.y).setScale(NODE_FRAME[n.kind].s);
@@ -460,7 +575,12 @@ export class CampScene extends Phaser.Scene {
       get fps() { return scene.fps; },
       nodes: () => scene.sim.nodes.map((n) => ({ id: n.id, kind: n.kind, x: n.x, y: n.y, amount: n.amount })),
       camp: () => ({ ...scene.sim.layout.fire }),
-      places: () => ({ fire: scene.sim.layout.fire, tent: scene.sim.layout.tent, nisa: scene.sim.layout.nisa, storage: scene.sim.layout.storage, slots: scene.sim.layout.lanternSlots, exits: scene.sim.layout.exits }),
+      places: () => {
+        const L = scene.sim.layout;
+        return { world: { w: L.worldW, h: L.worldH }, fire: L.fire, letterSlot: L.letterSlot, tent: L.tent, tents: L.tents, furniture: L.furniture, nisa: L.nisa, storage: L.storage, slots: L.lanternSlots, exits: L.exits, fence: L.fence.map((f, i) => ({ ...f, state: scene.sim.fenceStates[i] })) };
+      },
+      get nisa() { return { x: scene.sim.nisa.x, y: scene.sim.nisa.y, mode: scene.sim.nisa.mode }; },
+      zoom: (z: number | null) => { scene.zoomOverride = z; scene.applyZoom(); for (const f of scene.fog) f.setVisible(z === null); },
       start: () => scene.events.emit("startGame"),
       goTo: (x: number, y: number) => { scene.affan.root.setPosition(x, y); scene.sim.player.x = x; scene.sim.player.y = y; scene.camPos.set(x, y - 34); },
       act: () => scene.doAction(),

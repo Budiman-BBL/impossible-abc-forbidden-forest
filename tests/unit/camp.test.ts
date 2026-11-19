@@ -18,7 +18,7 @@ function run(s: CampSim, secs: number, dt = 0.1): CampEvent[] {
 
 describe("Sprint 1 camp", () => {
   it("layout matches the blueprint: one fire, 4 fixed lantern slots, 3 exits, seeded nodes", () => {
-    const a = makeCampLayout(7), b = makeCampLayout(7);
+    const a = makeCampLayout(), b = makeCampLayout();
     expect(a).toEqual(b);
     expect(a.lanternSlots).toHaveLength(4);
     expect(a.exits).toHaveLength(3);

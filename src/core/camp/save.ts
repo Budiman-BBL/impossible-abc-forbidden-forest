@@ -5,6 +5,7 @@
 import { RESOURCES, type Inventory } from "./config";
 import type { Phase } from "./clock";
 import type { CampSim } from "./sim";
+import type { FenceState } from "./layout";
 
 export const SAVE_VERSION = 1;
 export const SAVE_KEY = "impossibleabc.save.v1";
@@ -14,7 +15,7 @@ export interface SaveDataV1 {
   version: 1;
   general: { day: number; timeOfDay: Phase; clock: number; sunStrength: number };
   player: { x: number; y: number; facing: Facing; hearts: number; inventory: Inventory; torch: number };
-  camp: { fuel: number; fireLit: boolean; fireEverLit: boolean; fireLevel: number; fenceParts: number; lanternSlots: boolean[]; campLevel: number; storage: Inventory };
+  camp: { fuel: number; fireLit: boolean; fireEverLit: boolean; fireLevel: number; fenceParts: number; lanternSlots: boolean[]; campLevel: number; storage: Inventory; fence?: FenceState[] };
   letters: { found: string[]; activeEffects: string[] };
   characters: { returned: string[]; tracksFound: string[]; pathsOpen: string[] };
   mapStory: { explored: string[]; rajaHints: string[]; flags: Record<string, boolean> };
@@ -25,7 +26,7 @@ export function toSave(s: CampSim): SaveDataV1 {
     version: 1,
     general: { day: s.day, timeOfDay: s.phase, clock: Math.round(s.t * 10) / 10, sunStrength: s.sun },
     player: { x: Math.round(s.player.x), y: Math.round(s.player.y), facing: s.player.facing, hearts: s.hearts, inventory: { ...s.inv }, torch: 0 },
-    camp: { fuel: Math.round(s.fire.fuel * 10) / 10, fireLit: s.fire.lit, fireEverLit: s.fire.everLit, fireLevel: s.fire.level, fenceParts: s.fenceParts, lanternSlots: [...s.lanternSlots], campLevel: 1, storage: { ...s.store } },
+    camp: { fuel: Math.round(s.fire.fuel * 10) / 10, fireLit: s.fire.lit, fireEverLit: s.fire.everLit, fireLevel: s.fire.level, fenceParts: s.fenceParts, lanternSlots: [...s.lanternSlots], campLevel: 1, storage: { ...s.store }, fence: [...s.fenceStates] },
     letters: { found: [...s.lettersFound], activeEffects: [] },
     characters: { returned: ["nisa", "affan"], tracksFound: [], pathsOpen: [] },
     mapStory: { explored: ["padang-kem"], rajaHints: [], flags: { hari1Survived: s.outcome === "won" } },
@@ -61,5 +62,6 @@ export function applySave(s: CampSim, d: SaveDataV1): void {
   s.fire.fuel = d.camp.fuel; s.fire.lit = d.camp.fireLit; s.fire.everLit = d.camp.fireEverLit; s.fire.level = d.camp.fireLevel;
   s.fenceParts = d.camp.fenceParts;
   d.camp.lanternSlots.forEach((v, i) => { if (i < s.lanternSlots.length) s.lanternSlots[i] = v; });
+  d.camp.fence?.forEach((v, i) => { if (i < s.fenceStates.length) s.fenceStates[i] = v; });
   s.lettersFound = [...d.letters.found];
 }
