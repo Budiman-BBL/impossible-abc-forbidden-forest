@@ -220,69 +220,9 @@
     "h": 183
    }
   },
-  "fence_side_weak": {
-   "frame": {
-    "x": 492,
-    "y": 297,
-    "w": 182,
-    "h": 182
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 182,
-    "h": 182
-   },
-   "sourceSize": {
-    "w": 182,
-    "h": 182
-   }
-  },
-  "fence_side_leaning": {
-   "frame": {
-    "x": 676,
-    "y": 297,
-    "w": 217,
-    "h": 181
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 217,
-    "h": 181
-   },
-   "sourceSize": {
-    "w": 217,
-    "h": 181
-   }
-  },
-  "fence_side_halfbroken": {
-   "frame": {
-    "x": 895,
-    "y": 297,
-    "w": 217,
-    "h": 170
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 217,
-    "h": 170
-   },
-   "sourceSize": {
-    "w": 217,
-    "h": 170
-   }
-  },
   "nisa_sit": {
    "frame": {
-    "x": 1114,
+    "x": 492,
     "y": 297,
     "w": 99,
     "h": 167
@@ -302,7 +242,7 @@
   },
   "fence_front_leaning": {
    "frame": {
-    "x": 1215,
+    "x": 593,
     "y": 297,
     "w": 233,
     "h": 162
@@ -322,7 +262,7 @@
   },
   "fence_front_halfbroken": {
    "frame": {
-    "x": 1450,
+    "x": 828,
     "y": 297,
     "w": 230,
     "h": 148
@@ -340,9 +280,49 @@
     "h": 148
    }
   },
+  "fence_vert_weak": {
+   "frame": {
+    "x": 1060,
+    "y": 297,
+    "w": 68,
+    "h": 148
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 68,
+    "h": 148
+   },
+   "sourceSize": {
+    "w": 68,
+    "h": 148
+   }
+  },
+  "fence_vert_leaning": {
+   "frame": {
+    "x": 1130,
+    "y": 297,
+    "w": 79,
+    "h": 148
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 79,
+    "h": 148
+   },
+   "sourceSize": {
+    "w": 79,
+    "h": 148
+   }
+  },
   "fence_front_weak": {
    "frame": {
-    "x": 1682,
+    "x": 1211,
     "y": 297,
     "w": 241,
     "h": 147
@@ -362,8 +342,8 @@
   },
   "berry_bush": {
    "frame": {
-    "x": 2,
-    "y": 532,
+    "x": 1454,
+    "y": 297,
     "w": 157,
     "h": 137
    },
@@ -382,8 +362,8 @@
   },
   "bush": {
    "frame": {
-    "x": 161,
-    "y": 532,
+    "x": 1613,
+    "y": 297,
     "w": 157,
     "h": 137
    },
@@ -400,10 +380,30 @@
     "h": 137
    }
   },
+  "fence_vert_halfbroken": {
+   "frame": {
+    "x": 1772,
+    "y": 297,
+    "w": 68,
+    "h": 136
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 68,
+    "h": 136
+   },
+   "sourceSize": {
+    "w": 68,
+    "h": 136
+   }
+  },
   "boulder": {
    "frame": {
-    "x": 320,
-    "y": 532,
+    "x": 1842,
+    "y": 297,
     "w": 144,
     "h": 135
    },
@@ -422,7 +422,7 @@
   },
   "fern2": {
    "frame": {
-    "x": 466,
+    "x": 2,
     "y": 532,
     "w": 141,
     "h": 129
@@ -438,31 +438,11 @@
    "sourceSize": {
     "w": 141,
     "h": 129
-   }
-  },
-  "fence_side_collapsed": {
-   "frame": {
-    "x": 609,
-    "y": 532,
-    "w": 279,
-    "h": 119
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 279,
-    "h": 119
-   },
-   "sourceSize": {
-    "w": 279,
-    "h": 119
    }
   },
   "fence_front_collapsed": {
    "frame": {
-    "x": 890,
+    "x": 145,
     "y": 532,
     "w": 266,
     "h": 115
@@ -482,7 +462,7 @@
   },
   "a_stone": {
    "frame": {
-    "x": 1158,
+    "x": 413,
     "y": 532,
     "w": 67,
     "h": 104
@@ -502,7 +482,7 @@
   },
   "a_stone_glow": {
    "frame": {
-    "x": 1227,
+    "x": 482,
     "y": 532,
     "w": 67,
     "h": 104
@@ -522,7 +502,7 @@
   },
   "stump2": {
    "frame": {
-    "x": 1296,
+    "x": 551,
     "y": 532,
     "w": 110,
     "h": 103
@@ -542,7 +522,7 @@
   },
   "stool": {
    "frame": {
-    "x": 1408,
+    "x": 663,
     "y": 532,
     "w": 95,
     "h": 91
@@ -560,9 +540,29 @@
     "h": 91
    }
   },
+  "fence_vert_collapsed": {
+   "frame": {
+    "x": 760,
+    "y": 532,
+    "w": 205,
+    "h": 84
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 205,
+    "h": 84
+   },
+   "sourceSize": {
+    "w": 205,
+    "h": 84
+   }
+  },
   "grass_tuft": {
    "frame": {
-    "x": 1505,
+    "x": 967,
     "y": 532,
     "w": 122,
     "h": 81
@@ -582,7 +582,7 @@
   },
   "rocks_moss": {
    "frame": {
-    "x": 1629,
+    "x": 1091,
     "y": 532,
     "w": 113,
     "h": 80
@@ -602,7 +602,7 @@
   },
   "flowers": {
    "frame": {
-    "x": 1744,
+    "x": 1206,
     "y": 532,
     "w": 97,
     "h": 76

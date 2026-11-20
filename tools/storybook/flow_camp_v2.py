@@ -182,11 +182,87 @@ def keyed_pieces(name, kill_rows=None, n=4):
     return out
 
 
+def vertical_sheet():
+    """fence_vertical_v3.jpg: pieces stacked top to bottom -> (rgb, alpha) crops, top to bottom."""
+    rgb, al = chroma_key(load("fence_vertical_v3.jpg"))
+    m = (al > 0.5).astype(np.uint8)
+    nl, lab, st, _ = cv2.connectedComponentsWithStats(m, connectivity=8)
+    for i in range(1, nl):
+        if st[i, 4] < 40: al[lab == i] = 0
+    mains = sorted([i for i in range(1, nl) if st[i, 4] >= 2500], key=lambda i: st[i, 1])
+    assert len(mains) == 4, [tuple(st[i]) for i in mains]
+    owner = np.zeros(nl, int)
+    for i in range(1, nl):
+        if st[i, 4] < 40: continue
+        cy = st[i, 1] + st[i, 3] / 2
+        owner[i] = min(mains, key=lambda j: 0 if j == i else abs(cy - (st[j, 1] + st[j, 3] / 2)))
+    out = []
+    for j in mains:
+        pm = np.isin(lab, [i for i in range(1, nl) if owner[i] == j]) | (lab == j)
+        pal = np.where(pm, al, 0)
+        ys, xs = np.nonzero(pal > 0.02)
+        y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+        out.append((rgb[y0:y1, x0:x1].copy(), pal[y0:y1, x0:x1].copy()))
+    return out
+
+
+def near_post_x(al):
+    """x (0..1) of the near post: centre of the opaque pixels in the bottom 8% of the piece."""
+    h = al.shape[0]
+    xs = np.nonzero(al[int(h * 0.92):] > 0.5)[1]
+    return float(xs.mean()) / al.shape[1]
+
+
+def ink_cut(rgb, al, keep):
+    """Erase where keep==0 and draw a 2px ink edge along the new break so it matches the line art."""
+    keep = keep.astype(np.float32)
+    al2 = al * keep
+    solid = (al2 > 0.5).astype(np.uint8)
+    cut = (cv2.dilate((1 - keep).astype(np.uint8), np.ones((5, 5), np.uint8)) > 0) & (solid > 0)
+    rgb2 = rgb.copy()
+    rgb2[cut] = rgb2[cut] * 0.25 + np.array([43, 27, 15], np.float32) * 0.75
+    return rgb2, al2
+
+
+def vertical_variants():
+    """Vertical-run pieces: weak = piece 1 (post line going away), leaning = piece 1 sheared a little,
+    half-broken = piece 1 with the far posts and rails snapped off (jagged, inked break), collapsed = piece 4.
+    Pieces 2 and 3 of the sheet are still sideways (comb look when stacked), so they are not used."""
+    p1, _p2, _p3, p4 = vertical_sheet()
+    rgb, al = p1
+    h, w = al.shape
+    res = {"weak": (rgb, al)}
+    # leaning: shear the top towards the outside by ~10 degrees, feet stay put
+    pad = int(h * 0.18)
+    big_rgb = np.zeros((h, w + pad, 3), np.float32); big_al = np.zeros((h, w + pad), np.float32)
+    big_rgb[:, :w] = rgb; big_al[:, :w] = al
+    M = np.float32([[1, -pad / h, pad], [0, 1, 0]])  # x' = x + pad*(1 - y/h)
+    lr = cv2.warpAffine(big_rgb, M, (w + pad, h), flags=cv2.INTER_LINEAR)
+    la = cv2.warpAffine(big_al, M, (w + pad, h), flags=cv2.INTER_LINEAR)
+    xs = np.nonzero(la.max(0) > 0.02)[0]
+    res["leaning"] = (lr[:, xs.min():xs.max() + 1], la[:, xs.min():xs.max() + 1])
+    # half-broken: everything right of the near post above a jagged line is gone; the near post loses its tip
+    npx = near_post_x(al) * w
+    yy, xx = np.mgrid[0:h, 0:w]
+    rng = np.random.default_rng(7)
+    jag = np.interp(xx[0], np.linspace(0, w, 9), rng.uniform(-0.06, 0.06, 9) * h)
+    line = np.where(xx > npx + w * 0.12, h * 0.30 + jag[None, :] + (xx - npx) * 0.25, h * 0.10 + jag[None, :] * 0.6)
+    keep = yy >= line
+    rgb_b, al_b = ink_cut(rgb, al, keep)
+    ys = np.nonzero(al_b.max(1) > 0.02)[0]
+    res["halfbroken"] = (rgb_b[ys.min():], al_b[ys.min():])
+    # the sheet's pile is drawn much bigger than the posts; bring it to ~ the front-view pile's size
+    f = 0.56
+    r4, a4 = p4
+    res["collapsed"] = (cv2.resize(r4, None, fx=f, fy=f, interpolation=cv2.INTER_AREA), cv2.resize(a4, None, fx=f, fy=f, interpolation=cv2.INTER_AREA))
+    return res
+
+
 def fence_pieces():
-    """Front view (north/south runs) and side view (east/west runs), 4 states each, keyed off pure green."""
+    """Front view (north/south runs) and vertical-run pieces (east/west), 4 states each, keyed off pure green."""
     k = PX_PER_UNIT * U_FENCE
     frames, meta = {}, {}
-    for view, name, kill in (("front", "fence_front_v2.jpg", None), ("side", "fence_side_v2.jpg", (474, 480))):
+    for view, name, kill in (("front", "fence_front_v2.jpg", None),):
         pieces = keyed_pieces(name, kill)
         ground = max(p[2][3] for p in pieces[:3])     # shared ground (feet of the standing pieces)
         for st, (rgb, al, box) in zip(FENCE_STATES, pieces):
@@ -195,6 +271,12 @@ def fence_pieces():
             frames[f"fence_{view}_{st}"] = im
             # origin y so that the sheet's ground line lands on the segment line
             meta[f"{view}_{st}"] = round(min(1.0, (ground - box[1]) / (box[3] - box[1])), 3)
+    for st, (rgb, al) in vertical_variants().items():
+        im = Image.fromarray(np.dstack([np.clip(rgb, 0, 255).astype(np.uint8), (np.clip(al, 0, 1) * 255).astype(np.uint8)]), "RGBA")
+        im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
+        frames[f"fence_vert_{st}"] = im
+        meta[f"vert_{st}"] = 0.78 if st == "collapsed" else 1.0
+        meta[f"vertX_{st}"] = round(near_post_x(al), 3)
     return frames, meta
 
 

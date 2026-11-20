@@ -389,28 +389,40 @@ export class CampScene extends Phaser.Scene {
         return;
       }
       const piece = st === "weak" ? "weak" : st === "missing" ? "collapsed" : Math.floor(f.id / 4) % 2 ? "leaning" : "halfbroken";
-      const front = Math.abs(dx) >= Math.abs(dy);
-      const view = front ? "front" : "side";
-      const frame = this.textures.getFrame(CAMP2_ATLAS, `fence_${view}_${piece}`);
-      const oy = originY[`${view}_${piece}`] ?? 1;
-      const pieceW = frame.width * FLOW_S;
-      // how many pieces fill the slot, and the scale that makes them meet without gaps
-      const run = front ? Math.abs(dx) : Math.abs(dy);
-      const step = front ? pieceW * 0.96 : 50;
+      const mid = { x: (f.a.x + f.b.x) / 2, y: (f.a.y + f.b.y) / 2 };
+      const west = mid.x < fire.x;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        // north/south runs: front-view pieces side by side
+        const frame = this.textures.getFrame(CAMP2_ATLAS, `fence_front_${piece}`);
+        const oy = originY[`front_${piece}`] ?? 1;
+        const pieceW = frame.width * FLOW_S;
+        const run = Math.abs(dx), step = pieceW * 0.96;
+        const n = Math.max(1, Math.round(run / step));
+        const sc = FLOW_S * Phaser.Math.Clamp((run / n) / step, 0.85, 1.2);
+        let ang = Math.atan2(dy, dx);
+        if (ang > Math.PI / 2) ang -= Math.PI; else if (ang < -Math.PI / 2) ang += Math.PI;
+        const tilt = Phaser.Math.Clamp(ang, -0.07, 0.07);
+        for (let k = 0; k < n; k++) {
+          const t = (k + 0.5) / n, x = f.a.x + dx * t, y = f.a.y + dy * t;
+          this.add.image(x, y, CAMP2_ATLAS, frame.name).setScale(sc).setRotation(tilt).setOrigin(0.5, oy).setDepth(piece === "collapsed" ? y - 30 : y);
+        }
+        return;
+      }
+      // east/west runs: the post line seen going away, stacked so the posts meet end to end (mirrored on the west)
+      const frame = this.textures.getFrame(CAMP2_ATLAS, `fence_vert_${piece}`);
+      const oy = originY[`vert_${piece}`] ?? 1, ox = originY[`vertX_${piece}`] ?? 0.5;
+      if (piece === "collapsed") {
+        this.add.image(mid.x, mid.y, CAMP2_ATLAS, frame.name).setScale(FLOW_S).setFlipX(west).setOrigin(west ? 1 - ox : ox, oy).setDepth(mid.y - 30);
+        return;
+      }
+      const lo = f.a.y > f.b.y ? f.a : f.b, hi = lo === f.a ? f.b : f.a;
+      const H = this.textures.getFrame(CAMP2_ATLAS, "fence_vert_weak").height * FLOW_S;
+      const run = Math.abs(dy), step = H * 0.8;
       const n = Math.max(1, Math.round(run / step));
-      const sc = front ? FLOW_S * Phaser.Math.Clamp((run / n) / (pieceW * 0.96), 0.85, 1.2) : FLOW_S;
-      let ang = Math.atan2(dy, dx);
-      if (ang > Math.PI / 2) ang -= Math.PI; else if (ang < -Math.PI / 2) ang += Math.PI;
-      const tilt = front ? Phaser.Math.Clamp(ang, -0.07, 0.07) : 0;
-      const mid = (f.a.x + f.b.x) / 2;
-      const west = mid < fire.x;
+      const sc = FLOW_S * Phaser.Math.Clamp((run / n) / step, 0.85, 1.2);
       for (let k = 0; k < n; k++) {
-        const t = (k + 0.5) / n;
-        const x = f.a.x + dx * t, y = f.a.y + dy * t;
-        const img = this.add.image(x, y, CAMP2_ATLAS, frame.name).setScale(sc).setRotation(tilt);
-        if (front) img.setOrigin(0.5, oy);
-        else img.setFlipX(west).setOrigin(west ? 0.9 : 0.1, oy); // near post sits on the ring line
-        img.setDepth(piece === "collapsed" ? y - 30 : y);
+        const t = k / n, x = lo.x + (hi.x - lo.x) * t, y = lo.y + (hi.y - lo.y) * t;
+        this.add.image(x, y, CAMP2_ATLAS, frame.name).setScale(sc).setFlipX(west).setOrigin(west ? 1 - ox : ox, oy).setDepth(y);
       }
     });
   }
