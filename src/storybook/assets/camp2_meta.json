@@ -7,6 +7,16 @@
   "tableH": 97.4,
   "benchW": 92.5
  },
+ "fenceOriginY": {
+  "front_weak": 1.0,
+  "front_leaning": 1.0,
+  "front_halfbroken": 1.0,
+  "front_collapsed": 0.849,
+  "side_weak": 1.0,
+  "side_leaning": 1.0,
+  "side_halfbroken": 1.0,
+  "side_collapsed": 0.708
+ },
  "aLetter": {
   "y0": 0.281,
   "y1": 0.713

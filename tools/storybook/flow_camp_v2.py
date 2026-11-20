@@ -2,7 +2,7 @@
 
 Cut-outs: Cikgu Nisa walk cycle (6 side frames, feet on one ground line), Nisa seated (front view, stool removed:
 the sprite stops at the seat line and the table hides the rest), the table set (top variant, split into
-table+back bench and the front bench so depth sorting works), the stump stool, the 4 fence states and the
+table+back bench and the front bench so depth sorting works), the stump stool, the 4 fence states in front and side view (pure-green sheets, chroma-keyed) and the
 letter-A stone (dull + the glowing letter as an overlay that is aligned to the dull stone's groove).
 All sprites are stored at PX_PER_UNIT atlas pixels per world unit, so the in-game scale is 1 / PX_PER_UNIT.
 """
@@ -17,7 +17,7 @@ WALK_FIG_PX = 502           # hijab top to boot soles in nisa_walk_v1.jpg
 U_WALK = NISA_H / WALK_FIG_PX
 U_SIT = U_WALK * 240 / 255  # matched on head-to-belt length (walk 240 px, seated front view 255 px)
 U_TABLE = 170 / 649         # whole top table set ≈ 170 world units wide
-U_FENCE = 100 / 404         # standing piece ≈ one 100-unit fence slot
+U_FENCE = 92 / 290          # front standing piece (≈290 px wide on the v2 sheet) ≈ 92 world units
 U_STONE = 40 / 671          # A stone ≈ 40 world units tall
 
 
@@ -123,15 +123,79 @@ def table_set():
     return table, bench, stump, rel
 
 
+FENCE_STATES = ("weak", "leaning", "halfbroken", "collapsed")
+
+
+def chroma_key(a):
+    """Pure-green key: alpha from green dominance (soft 2-step ramp), green spill pulled out of the edge pixels."""
+    a = a.astype(np.float32)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    key = g - np.maximum(r, b)                      # wood/rope/ink: <= ~10, screen: ~240
+    al = np.clip(1 - (key - 18) / (110 - 18), 0, 1)
+    # despill: no pixel may stay greener than its red/blue allow (wood is never green-dominant)
+    g2 = np.minimum(g, np.maximum(r, b) * 1.0 + 4)
+    out = np.dstack([r, g2, b]).clip(0, 255)
+    # semi-transparent edge pixels are mixes with the green: unmix towards the ink/wood colour
+    edge = (al > 0) & (al < 1)
+    for c in range(3):
+        bgc = (0.0, 248.0, 0.0)[c]
+        ch = a[..., c]
+        un = (ch - (1 - al) * bgc) / np.maximum(al, 1e-3)
+        out[..., c] = np.where(edge, np.clip(un, 0, 255), out[..., c])
+    # wood/ink green sits between red and blue: clamp both ways (no green fringe, no magenta from over-unmixing)
+    out[..., 1] = np.clip(out[..., 1], np.minimum(out[..., 0], out[..., 2]), np.maximum(out[..., 0], out[..., 2]) + 4)
+    return out, al
+
+
+def keyed_pieces(name, kill_rows=None, n=4):
+    a = load(name)
+    rgb, al = chroma_key(a)
+    if kill_rows:  # thin ground line: drop it wherever there is screen right above and below it
+        y0, y1 = kill_rows
+        above, below = al[y0 - 3], al[y1 + 3]
+        for y in range(y0, y1 + 1):
+            al[y] = np.where((above < 0.5) | (below < 0.5), 0, al[y])
+    m = (al > 0.5).astype(np.uint8)
+    nl, lab, st, _ = cv2.connectedComponentsWithStats(m, connectivity=8)
+    for i in range(1, nl):                          # specks (jpeg noise) go
+        if st[i, 4] < 40:
+            al[lab == i] = 0
+    cols = (al > 0.5).sum(0)
+    spans, ins = [], False
+    for x in range(len(cols)):
+        if cols[x] > 0 and not ins: s0, ins = x, True
+        if cols[x] == 0 and ins: spans.append((s0, x)); ins = False
+    spans = [sp for sp in spans if sp[1] - sp[0] > 6]
+    # merge nearest spans until there are n pieces (a piece can have a detached rope end)
+    while len(spans) > n:
+        gaps = [spans[i + 1][0] - spans[i][1] for i in range(len(spans) - 1)]
+        i = int(np.argmin(gaps)); spans[i:i + 2] = [(spans[i][0], spans[i + 1][1])]
+    assert len(spans) == n, spans
+    out = []
+    for x0, x1 in spans:
+        sub_al = al[:, x0:x1]
+        ys, xs = np.nonzero(sub_al > 0.02)
+        by0, by1, bx0, bx1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+        piece_rgb = rgb[by0:by1, x0 + bx0:x0 + bx1]
+        piece_al = sub_al[by0:by1, bx0:bx1]
+        out.append((piece_rgb, piece_al, (x0 + bx0, by0, x0 + bx1, by1)))
+    return out
+
+
 def fence_pieces():
-    a = load("fence_pieces_v1.jpg")
+    """Front view (north/south runs) and side view (east/west runs), 4 states each, keyed off pure green."""
     k = PX_PER_UNIT * U_FENCE
-    return {
-        "fence_weak": cut_box(a, (180, 55, 610, 370), k)[0],
-        "fence_leaning": cut_box(a, (780, 75, 1110, 370), k)[0],
-        "fence_halfbroken": cut_box(a, (185, 385, 610, 712), k)[0],
-        "fence_collapsed": cut_box(a, (750, 465, 1195, 700), k)[0],
-    }
+    frames, meta = {}, {}
+    for view, name, kill in (("front", "fence_front_v2.jpg", None), ("side", "fence_side_v2.jpg", (474, 480))):
+        pieces = keyed_pieces(name, kill)
+        ground = max(p[2][3] for p in pieces[:3])     # shared ground (feet of the standing pieces)
+        for st, (rgb, al, box) in zip(FENCE_STATES, pieces):
+            im = Image.fromarray(np.dstack([rgb.astype(np.uint8), (al * 255).astype(np.uint8)]), "RGBA")
+            im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
+            frames[f"fence_{view}_{st}"] = im
+            # origin y so that the sheet's ground line lands on the segment line
+            meta[f"{view}_{st}"] = round(min(1.0, (ground - box[1]) / (box[3] - box[1])), 3)
+    return frames, meta
 
 
 def a_stone():
@@ -184,7 +248,9 @@ def flow_frames():
     table, bench, stump, rel = table_set()
     frames["table"], frames["bench"], frames["stool"] = table, bench, stump
     meta["table"] = rel
-    frames.update(fence_pieces())
+    fence, fence_origin = fence_pieces()
+    frames.update(fence)
+    meta["fenceOriginY"] = fence_origin
     dull, overlay, lb = a_stone()
     frames["a_stone"], frames["a_stone_glow"] = dull, overlay
     meta["aLetter"] = lb

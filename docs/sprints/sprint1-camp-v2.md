@@ -32,7 +32,9 @@ Branch `sprint1-camp-v2` (from `sprint1-living-camp` @ 1811891). Based on the ap
 - **Flow art (Budiman, `assets/storybook-src/flow_camp_v2/`, cut by `tools/storybook/flow_camp_v2.py`):**
   Nisa walk cycle (6 side frames, advanced by distance walked, mirrored for left), Nisa seated (front view, cut at
   the seat line, behind the table on its back bench), table set (top variant split into table+back bench and front
-  bench), stump stool, fence pieces (weak = standing, damaged = leaning / half-broken, missing = collapsed on the
-  ground and walkable, solid = original camp fence art; open trail gates stay empty), letter-A stone (dull stone +
+  bench), stump stool, fence pieces v2 (pure-green sheets `fence_front_v2.jpg` / `fence_side_v2.jpg`, chroma-keyed with
+  despill; front view on mostly horizontal ring slots, side view on mostly vertical ones, mirrored on the west; no
+  tilting beyond ±4°; weak = standing, damaged = leaning / half-broken, missing = collapsed pile on the ground and
+  walkable, solid = original camp fence art; open trail gates stay empty), letter-A stone (dull stone +
   glowing letter overlay that fills bottom-up with `CampSim.letterGlow()`: gathering for the first fire fills it
   halfway, then it follows the fire's fuel; no letter is "found" yet, ABC stays 0/13).
