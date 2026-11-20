@@ -3,10 +3,13 @@
 Sources (all project art, nothing third-party):
   /workspace/abc_game/map_ref/objects_raw/  belukar_objects_v1/v2.jpg, hutan_objects_v1.jpg, tex_grass_v1.jpg, tex_dirt_v1.jpg
   /workspace/abc_game/camp_assets_v1/objects/  tent.png, fence_segment.png
-Procedural (storybook-style placeholders until proper art): table, bench, stool.
-Output: src/storybook/assets/camp2.png/json, ground_grass.jpg, ground_dirt.jpg.
+Flow art (assets/storybook-src/flow_camp_v2, see flow_camp_v2.py): Nisa walk + seated, table set, stump stool,
+fence states, letter-A stone.
+Output: src/storybook/assets/camp2.png/json, camp2_meta.json, ground_grass.jpg, ground_dirt.jpg.
 """
 import json, os, sys
+sys.path.insert(0, os.path.dirname(__file__))
+from flow_camp_v2 import flow_frames
 import numpy as np, cv2
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -61,99 +64,6 @@ def recolor_tent(hue_shift, sat_mul, val_mul):
     return img.resize((img.width // 2, img.height // 2), Image.LANCZOS)
 
 
-INK = (43, 27, 15, 255)
-WOOD = [(150, 98, 52), (128, 82, 42), (170, 115, 64)]
-
-
-def plank(d, box, base, lw, lines=0, horizontal=True):
-    x0, y0, x1, y1 = box
-    d.rounded_rectangle(box, radius=lw * 2, fill=base + (255,), outline=INK, width=lw)
-    dark = tuple(max(0, c - 34) for c in base) + (255,)
-    for i in range(1, lines + 1):
-        if horizontal:
-            y = y0 + (y1 - y0) * i / (lines + 1)
-            d.line([(x0 + lw * 2, y), (x1 - lw * 2, y)], fill=dark, width=max(2, lw // 2))
-        else:
-            x = x0 + (x1 - x0) * i / (lines + 1)
-            d.line([(x, y0 + lw * 2), (x, y1 - lw * 2)], fill=dark, width=max(2, lw // 2))
-    # grain flecks
-    rng = np.random.default_rng(int(x0 + y0))
-    if x1 - x0 < lw * 8 or y1 - y0 < lw * 8:
-        return
-    for _ in range(int((x1 - x0) * (y1 - y0) / 1800)):
-        gx, gy = rng.uniform(x0 + lw * 3, x1 - lw * 3), rng.uniform(y0 + lw * 3, y1 - lw * 3)
-        d.line([(gx, gy), (gx + rng.uniform(8, 22), gy + rng.uniform(-1, 1))], fill=dark, width=2)
-
-
-def draw_table():
-    """3/4-view camp table: plank top, front apron, four legs. Drawn at 4x, saved at 1x (≈2 px per world unit)."""
-    S = 4
-    W, H = 250 * S, 150 * S
-    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    lw = 4 * S
-    # shadow
-    d.ellipse([18 * S, 118 * S, 232 * S, 146 * S], fill=(0, 0, 0, 70))
-    # back legs
-    for x in (40, 200):
-        plank(d, (x * S, 40 * S, (x + 12) * S, 118 * S), WOOD[1], lw)
-    # top (seen from above at an angle)
-    plank(d, (14 * S, 20 * S, 236 * S, 82 * S), WOOD[2], lw, lines=3)
-    # front apron
-    plank(d, (14 * S, 76 * S, 236 * S, 96 * S), WOOD[1], lw)
-    # front legs
-    for x in (26, 212):
-        plank(d, (x * S, 88 * S, (x + 14) * S, 134 * S), WOOD[0], lw)
-    # a lantern-less cup and a book for life
-    d.rounded_rectangle([60 * S, 34 * S, 92 * S, 56 * S], radius=3 * S, fill=(196, 64, 52, 255), outline=INK, width=3 * S)
-    d.line([(62 * S, 45 * S), (90 * S, 45 * S)], fill=(240, 228, 200, 255), width=2 * S)
-    d.ellipse([168 * S, 36 * S, 186 * S, 52 * S], fill=(110, 140, 170, 255), outline=INK, width=3 * S)
-    return im.resize((W // S, H // S), Image.LANCZOS)
-
-
-def draw_bench():
-    S = 4
-    W, H = 230 * S, 70 * S
-    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    lw = 4 * S
-    d.ellipse([14 * S, 50 * S, 216 * S, 68 * S], fill=(0, 0, 0, 70))
-    for x in (30, 186):
-        plank(d, (x * S, 26 * S, (x + 14) * S, 62 * S), WOOD[0], lw)
-    plank(d, (10 * S, 10 * S, 220 * S, 34 * S), WOOD[2], lw, lines=1)
-    return im.resize((W // S, H // S), Image.LANCZOS)
-
-
-def draw_stool():
-    """A sawn log round to sit on."""
-    S = 4
-    W, H = 70 * S, 70 * S
-    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    lw = 4 * S
-    d.ellipse([6 * S, 50 * S, 64 * S, 66 * S], fill=(0, 0, 0, 70))
-    d.rectangle([10 * S, 22 * S, 60 * S, 56 * S], fill=WOOD[1] + (255,))
-    d.ellipse([10 * S, 46 * S, 60 * S, 62 * S], fill=WOOD[1] + (255,), outline=INK, width=lw)
-    d.rectangle([10 * S + lw, 24 * S, 60 * S - lw, 54 * S], fill=WOOD[1] + (255,))
-    d.line([(10 * S + lw // 2, 22 * S), (10 * S + lw // 2, 54 * S)], fill=INK, width=lw)
-    d.line([(60 * S - lw // 2, 22 * S), (60 * S - lw // 2, 54 * S)], fill=INK, width=lw)
-    for x in (22, 38, 50):
-        d.line([(x * S, 34 * S), (x * S, 50 * S)], fill=(96, 60, 30, 255), width=2 * S)
-    d.ellipse([10 * S, 12 * S, 60 * S, 32 * S], fill=(212, 170, 112, 255), outline=INK, width=lw)
-    for r in (8, 15):
-        d.ellipse([(35 - r) * S, (22 - r * 0.4) * S, (35 + r) * S, (22 + r * 0.4) * S], outline=(160, 112, 60, 255), width=2 * S)
-    return im.resize((W // S, H // S), Image.LANCZOS)
-
-
-def fence_parts():
-    im = Image.open(os.path.join(OBJ, "fence_segment.png")).convert("RGBA")
-    post = im.crop((36, 12, 94, 300))           # left post
-    rail = im.crop((92, 78, 306, 128))          # a clean piece of the top rail, between posts
-    post = post.crop(post.getbbox())
-    rail = rail.crop(rail.getbbox())
-    return post.resize((post.width // 2, post.height // 2), Image.LANCZOS), rail.resize((rail.width // 2, rail.height // 2), Image.LANCZOS)
-
-
 def tile(path, hue=0.0, sat=1.0, val=1.0, size=512, calm=0.0):
     """One exact repeat of the painted texture (688x768 period), recoloured and made POT."""
     im = Image.open(path).convert("RGB").crop((0, 0, 688, 768))
@@ -188,13 +98,9 @@ def main():
         "tent_nisa": recolor_tent(0, 1.0, 1.0),
         "tent_boys": recolor_tent(150, 0.75, 1.0),     # slate blue canvas
         "tent_girls": recolor_tent(-40, 1.05, 1.08),   # warm terracotta canvas
-        "table": draw_table(),
-        "bench": draw_bench(),
-        "stool": draw_stool(),
     }
-    post, rail = fence_parts()
-    frames["fence_post"] = post
-    frames["fence_rail"] = rail
+    flow, flow_meta = flow_frames()
+    frames.update(flow)
     # simple shelf packer
     order = sorted(frames, key=lambda k: -frames[k].height)
     W, x, y, rowh, pos = 2048, 2, 2, 0, {}
@@ -217,6 +123,7 @@ def main():
                              "spriteSourceSize": {"x": 0, "y": 0, "w": im.width, "h": im.height}, "sourceSize": {"w": im.width, "h": im.height}}
     atlas.save(os.path.join(OUT, "camp2.png"), optimize=True)
     json.dump(meta, open(os.path.join(OUT, "camp2.json"), "w"), indent=1)
+    json.dump(flow_meta, open(os.path.join(OUT, "camp2_meta.json"), "w"), indent=1)
     tile(f"{RAW}/tex_grass_v1.jpg", hue=-62, sat=0.62, val=0.86).save(os.path.join(OUT, "ground_grass.jpg"), quality=88)
     tile(f"{RAW}/tex_dirt_v1.jpg", hue=6, sat=0.8, val=1.2, calm=0.55).save(os.path.join(OUT, "ground_dirt.jpg"), quality=88)
     print("atlas", W, H, {k: frames[k].size for k in frames})

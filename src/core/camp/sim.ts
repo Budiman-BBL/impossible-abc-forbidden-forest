@@ -101,6 +101,20 @@ export class CampSim {
     return r > 0 && Math.hypot(x - this.layout.fire.x, y - this.layout.fire.y) < r - 6;
   }
 
+  /**
+   * 0..1 glow of the letter-A stone beside the fire. Gathering for the first fire fills it halfway, then it
+   * follows the fire's fuel; a dead fire leaves a faint glow. (Finding the letter itself is a later sprint.)
+   */
+  letterGlow(): number {
+    const F = C.fire;
+    if (!this.fire.everLit) {
+      const prep = (Math.min(this.total("kayu"), F.firstKayu) + Math.min(this.total("batu"), F.firstBatu)) / (F.firstKayu + F.firstBatu);
+      return 0.5 * prep;
+    }
+    if (!this.burning) return 0.15;
+    return 0.5 + 0.5 * Math.min(1, this.fire.fuel / F.fuelMax);
+  }
+
   inCamp(): boolean { return dist(this.player, this.layout.fire) < C.campR; }
   total(res: Res): number { return this.inv[res] + this.store[res]; }
 

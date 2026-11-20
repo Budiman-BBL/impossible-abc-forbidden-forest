@@ -171,17 +171,19 @@ export function makeCampLayout(): CampLayout {
     { ...at(35, -292), kind: "tent_boys", s: 0.44, r: 0 },
     { ...at(-300, -62), kind: "tent_girls", s: 0.44, r: 0, flip: true },
   ];
-  const table = at(-125, -95);
+  // Flow table set: the table sprite carries the back bench (it runs behind the table), the front bench is its
+  // own sprite. Anchors are the bottom-centre of each sprite; the bench offset matches the art split.
+  const table = at(-125, -80);
   const furniture: CampObject[] = [
-    { ...table, kind: "table", s: 0.5, r: 0 },
-    { ...at(-125, -140), kind: "bench", s: 0.5, r: 0 },
-    { ...at(-125, -47), kind: "bench", s: 0.5, r: 0 },
-    { ...at(-38, -98), kind: "stool", s: 0.5, r: 0 },
+    { ...table, kind: "table", s: 1, r: 0 },
+    { x: table.x + 47, y: table.y + 10, kind: "bench", s: 1, r: 0 },
+    { ...at(-182, -26), kind: "stool", s: 1, r: 0 },
   ];
-  const nisaSeat = at(-125, -146);
+  // seated on the back bench, behind the middle of the table (the table top hides her lap)
+  const nisaSeat = { x: table.x - 8, y: table.y - 69 };
   const nisaRoute: NisaStop[] = [
     { ...nisaSeat, act: "sit", hold: 16 },
-    { ...at(-40, -152), act: "pass", hold: 0 },
+    { ...at(-72, -180), act: "pass", hold: 0 },
     { ...at(60, -160), act: "stand", hold: 7 },
     { ...at(190, -70), act: "pass", hold: 0 },
     { ...at(170, 40), act: "stand", hold: 6 },
@@ -190,7 +192,8 @@ export function makeCampLayout(): CampLayout {
     { ...at(-222, 18), act: "stand", hold: 7 },
     { ...at(-222, -150), act: "pass", hold: 0 },
   ];
-  const nisaLantern = at(-70, -168);
+  const nisaLantern = at(-22, -184);
+  const letterSlot = at(78, -6);
   const storage = at(250, -40);
   const lanternSlots = [at(-330, 60), at(335, -130), at(125, 300), at(-200, 285)];
   const decor: CampObject[] = [{ ...at(300, 40), kind: "log_bundle", s: 0.24, r: 18 }];
@@ -203,15 +206,17 @@ export function makeCampLayout(): CampLayout {
   // obstacles (Affan collides with these; wolves ignore them)
   const blockers: Blocker[] = [{ ...fire, r: 40 }];
   for (const t of tents) blockers.push({ x: t.x - 34, y: t.y - 8, r: 50 }, { x: t.x + 38, y: t.y - 8, r: 44 });
-  blockers.push({ x: table.x - 40, y: table.y, r: 26 }, { x: table.x + 40, y: table.y, r: 26 }, { x: table.x, y: table.y, r: 26 });
+  // footprints follow the 3/4 art: the table and bench run diagonally (low-left to high-right)
+  for (const [dx, dy, r] of [[-38, -14, 18], [-4, -30, 22], [32, -46, 20], [60, -54, 14], [-66, -40, 14]] as const) blockers.push({ x: table.x + dx, y: table.y + dy, r });
   for (const f of furniture) {
-    if (f.kind === "bench") blockers.push({ x: f.x - 34, y: f.y, r: 12 }, { x: f.x + 34, y: f.y, r: 12 }, { x: f.x, y: f.y, r: 12 });
-    if (f.kind === "stool") blockers.push({ x: f.x, y: f.y, r: 11 });
+    if (f.kind === "bench") for (const [dx, dy] of [[-26, -8], [0, -18], [24, -28], [42, -36]] as const) blockers.push({ x: f.x + dx, y: f.y + dy, r: 11 });
+    if (f.kind === "stool") blockers.push({ x: f.x, y: f.y - 4, r: 12 });
   }
+  blockers.push({ x: letterSlot.x, y: letterSlot.y - 4, r: 12 });
   blockers.push({ ...storage, y: storage.y - 8, r: 40 }, { x: nisaLantern.x - 14, y: nisaLantern.y, r: 8 });
   for (const d of decor) if (d.r > 0) blockers.push({ x: d.x, y: d.y, r: d.r });
   for (const f of fence) {
-    if (f.state !== "weak" && f.state !== "solid") continue;
+    if (f.state === "missing") continue;
     for (let k = 0; k <= 3; k++) blockers.push({ x: f.a.x + ((f.b.x - f.a.x) * k) / 3, y: f.a.y + ((f.b.y - f.a.y) * k) / 3, r: 10 });
   }
 
@@ -282,7 +287,7 @@ export function makeCampLayout(): CampLayout {
   }
 
   return {
-    worldW: WORLD_W, worldH: WORLD_H, fire, letterSlot: at(78, -6), tent: { x: tents[0]!.x, y: tents[0]!.y }, tents, furniture,
+    worldW: WORLD_W, worldH: WORLD_H, fire, letterSlot, tent: { x: tents[0]!.x, y: tents[0]!.y }, tents, furniture,
     nisa: nisaSeat, nisaRoute, nisaLantern, storage, lanternSlots,
     reserved: { craftTable: at(-35, 250), fenceR: FENCE_R, growR: GROW_R }, clearingR: CLEARING_R,
     fence, decor, trails: TRAILS, areas: AREAS, exits, wolfSpawn, spawn, props, nodes, blockers,

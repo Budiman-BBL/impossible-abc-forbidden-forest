@@ -16,6 +16,7 @@ import campPng from "./assets/camp.png";
 import campJson from "./assets/camp.json";
 import camp2Png from "./assets/camp2.png";
 import camp2Json from "./assets/camp2.json";
+import camp2Meta from "./assets/camp2_meta.json";
 import groundGrass from "./assets/ground_grass.jpg";
 import groundDirt from "./assets/ground_dirt.jpg";
 import titleJpg from "./assets/camp_title.jpg";
@@ -29,6 +30,8 @@ const DUSK = new Phaser.Display.Color(70, 34, 18);
 export interface CampInput { x: number; y: number; action: boolean }
 
 export const CAMP2_ATLAS = "camp2";
+/** Flow-art sprites are stored at a fixed pixels-per-world-unit, so they all share this scale */
+export const FLOW_S = camp2Meta.scale;
 /** world units per mask pixel (soft masks are drawn small and scaled up) */
 const DIRT_M = 6;
 const SHADE_M = 16;
@@ -74,6 +77,7 @@ export class CampScene extends Phaser.Scene {
   private dark!: Phaser.GameObjects.RenderTexture;
   private brush!: Phaser.GameObjects.Image;
   private glow!: Phaser.GameObjects.Image;
+  private aStone!: { glow: Phaser.GameObjects.Image; halo: Phaser.GameObjects.Image; level: number };
   private lanternGlow!: Phaser.GameObjects.Image;
   private shroomGlows: Phaser.GameObjects.Image[] = [];
   private eyes!: Phaser.GameObjects.Graphics;
@@ -113,7 +117,6 @@ export class CampScene extends Phaser.Scene {
     const dirt = this.add.tileSprite(W / 2, H / 2, W, H, "gDirt").setTileScale(0.34).setDepth(-19000);
     const maskImg = this.make.image({ x: 0, y: 0, key: this.makeDirtMask(L), add: false }).setOrigin(0).setScale(DIRT_M);
     dirt.setMask(new Phaser.Display.Masks.BitmapMask(this, maskImg));
-    this.drawLetterSlot(L.letterSlot);
 
     // forest + zone props
     for (const p of L.props) {
@@ -130,7 +133,8 @@ export class CampScene extends Phaser.Scene {
     const obj = (x: number, y: number, frame: string, s: number, oy = 0.88, flip = false, atlas = CAMP_ATLAS) =>
       this.add.image(x, y, atlas, frame).setOrigin(0.5, oy).setScale(s).setFlipX(flip).setDepth(y);
     for (const t of L.tents) obj(t.x, t.y, t.kind, t.s, 0.86, !!t.flip, CAMP2_ATLAS);
-    for (const f of L.furniture) obj(f.x, f.y, f.kind, f.s, f.kind === "table" ? 0.8 : 0.82, false, CAMP2_ATLAS);
+    for (const f of L.furniture) obj(f.x, f.y, f.kind, FLOW_S * f.s, 1, false, CAMP2_ATLAS);
+    this.makeLetterStone(L.letterSlot);
     this.rack = obj(L.storage.x, L.storage.y, "storage_rack_empty", 0.36, 0.9);
     obj(L.nisaLantern.x, L.nisaLantern.y, "lantern_post_lit", 0.3, 0.97);
     for (const s of L.lanternSlots) obj(s.x, s.y, "lantern_post_empty", 0.3, 0.97);
@@ -165,7 +169,7 @@ export class CampScene extends Phaser.Scene {
       this.nodeSprites.set(n.id, img);
     }
     // characters
-    this.nisa = new Nisa(this, this.sim.nisa, L.furniture);
+    this.nisa = new Nisa(this, this.sim.nisa);
     this.affan = new Affan(this, L.spawn.x, L.spawn.y);
     this.affan.setFacing("up", this);
     this.camPos.set(L.spawn.x, L.spawn.y - 40);
@@ -345,44 +349,51 @@ export class CampScene extends Phaser.Scene {
     return key;
   }
 
-  /** Letter-A slot beside the fire: a flat stone with an A-shaped groove (filled when A is found, later). */
-  private drawLetterSlot(p: Pt): void {
-    const g = this.add.graphics().setDepth(-18000);
-    g.fillStyle(0x000000, 0.25).fillEllipse(p.x + 2, p.y + 4, 46, 22);
-    g.fillStyle(0x8f8a80, 1).fillEllipse(p.x, p.y, 44, 22);
-    g.lineStyle(2, 0x3a2e22, 1).strokeEllipse(p.x, p.y, 44, 22);
-    g.fillStyle(0xa9a398, 1).fillEllipse(p.x - 3, p.y - 2, 30, 12);
-    g.lineStyle(2.5, 0x4a3a2a, 1);
-    g.beginPath(); g.moveTo(p.x - 8, p.y + 6); g.lineTo(p.x, p.y - 7); g.lineTo(p.x + 8, p.y + 6); g.strokePath();
-    g.beginPath(); g.moveTo(p.x - 4, p.y + 1); g.lineTo(p.x + 4, p.y + 1); g.strokePath();
+  /** Letter-A stone beside the fire (Flow art): dull stone + its glowing letter, filled bottom-up by sim.letterGlow(). */
+  private makeLetterStone(p: Pt): void {
+    this.add.image(p.x, p.y, CAMP2_ATLAS, "a_stone").setOrigin(0.5, 0.96).setScale(FLOW_S).setDepth(p.y);
+    const glow = this.add.image(p.x, p.y, CAMP2_ATLAS, "a_stone_glow").setOrigin(0.5, 0.96).setScale(FLOW_S).setDepth(p.y + 0.5);
+    const halo = this.add.image(p.x, p.y - 20, "sbGlowW").setTint(0xffa040).setBlendMode(Phaser.BlendModes.ADD).setDepth(D_DARK + 1).setScale(0.5).setAlpha(0);
+    this.aStone = { glow, halo, level: 0 };
   }
 
-  /** Night-1 fence: leaning posts and sagging single rails; broken pieces lie on the ground; gaps stay open. */
+  private drawLetterStone(dt: number): void {
+    const S = this.aStone, want = this.sim.letterGlow();
+    S.level += (want - S.level) * (1 - Math.exp(-dt * 3));
+    const fr = S.glow.frame, { y0, y1 } = camp2Meta.aLetter;
+    // fill the carved letter from its foot upwards; above half, the whole letter burns brighter
+    const fill = Math.min(1, S.level * 2);
+    const top = fr.height * (y1 - (y1 - y0) * fill);
+    S.glow.setCrop(0, top, fr.width, fr.height - top).setVisible(fill > 0.01);
+    const flick = 1 + Math.sin(this.t * 9) * 0.04 + Math.sin(this.t * 23) * 0.02;
+    S.glow.setAlpha(Math.min(1, 0.55 + S.level * 0.6) * flick);
+    S.halo.setAlpha(Math.max(0, S.level - 0.1) * (0.35 + this.sim.darkness * 0.6) * flick).setScale(0.35 + S.level * 0.35);
+  }
+
+  /**
+   * Fence pieces (Flow art): weak = standing, damaged = leaning or half-broken, missing = collapsed on the ground
+   * (walkable), solid = the original camp fence. The art runs low-left to high-right; it is mirrored/tilted to
+   * follow each ring slot. Trail gates stay empty.
+   */
   private drawFence(segs: FenceSeg[], states: FenceState[]): void {
-    const posts = new Map<string, Pt>();
-    const lean = (id: number) => (((id * 53) % 17) / 17 - 0.5) * 0.3;
+    const ART_ANG = -0.31; // slope of the pieces as drawn
     segs.forEach((f, i) => {
       const st = states[i];
-      if (st === "missing" || st === undefined) return;
-      const ang = Math.atan2(f.b.y - f.a.y, f.b.x - f.a.x), len = Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y);
+      if (st === undefined || (st === "missing" && f.gate)) return;
+      const frame = st === "weak" ? "fence_weak" : st === "damaged" ? (Math.floor(f.id / 4) % 2 ? "fence_leaning" : "fence_halfbroken") : st === "missing" ? "fence_collapsed" : "fence_segment";
+      const atlas = st === "solid" ? CAMP_ATLAS : CAMP2_ATLAS;
+      const dx = f.b.x - f.a.x, dy = f.b.y - f.a.y;
       const mid = { x: (f.a.x + f.b.x) / 2, y: (f.a.y + f.b.y) / 2 };
-      if (st === "damaged") {
-        // one post left standing crooked, its rail fallen in the grass
-        const p = f.id % 2 ? f.a : f.b;
-        posts.set(`${Math.round(p.x)},${Math.round(p.y)}`, p);
-        this.add.image(mid.x, mid.y + 4, CAMP2_ATLAS, "fence_rail").setScale((len * 0.8) / 107, 0.55).setRotation(ang + 0.18).setDepth(mid.y - 30);
-        return;
-      }
-      for (const p of [f.a, f.b]) posts.set(`${Math.round(p.x)},${Math.round(p.y)}`, p);
-      const sag = 5 + (f.id % 3) * 3;
-      const rail = this.add.image(mid.x, mid.y - 33 + sag, CAMP2_ATLAS, "fence_rail").setScale(len / 107, 0.55).setRotation(ang + (f.id % 2 ? 0.05 : -0.05));
-      rail.setDepth(mid.y + 1);
-      if (st === "solid") this.add.image(mid.x, mid.y - 14, CAMP2_ATLAS, "fence_rail").setScale(len / 107, 0.55).setRotation(ang).setDepth(mid.y + 1);
+      let ang = Math.atan2(dy, dx);
+      if (ang > Math.PI / 2) ang -= Math.PI; else if (ang < -Math.PI / 2) ang += Math.PI; // left-to-right
+      const flip = ang > 0;
+      const base = st === "solid" ? 0 : flip ? -ART_ANG : ART_ANG;
+      const rot = Phaser.Math.Clamp(ang - base, -0.45, 0.45);
+      const sx = Phaser.Math.Clamp(Math.abs(dx) / 95 + 0.3, 0.6, 1.1);
+      const s = st === "solid" ? 0.32 : FLOW_S;
+      const img = this.add.image(mid.x, mid.y, atlas, frame).setOrigin(0.5, st === "missing" ? 0.6 : 0.85).setFlipX(flip).setRotation(rot);
+      img.setScale(s * sx, s).setDepth(st === "missing" ? mid.y - 40 : mid.y);
     });
-    let id = 0;
-    for (const p of posts.values()) {
-      this.add.image(p.x, p.y, CAMP2_ATLAS, "fence_post").setOrigin(0.5, 0.96).setScale(0.38).setRotation(lean(id++)).setDepth(p.y);
-    }
   }
 
   update(_t: number, deltaMs: number): void {
@@ -472,6 +483,7 @@ export class CampScene extends Phaser.Scene {
     cam.centerOn(this.camPos.x, this.camPos.y);
 
     this.drawFire(dt);
+    this.drawLetterStone(dt);
     this.drawLight();
     this.drawFx(dt);
   }
@@ -579,7 +591,7 @@ export class CampScene extends Phaser.Scene {
         const L = scene.sim.layout;
         return { world: { w: L.worldW, h: L.worldH }, fire: L.fire, letterSlot: L.letterSlot, tent: L.tent, tents: L.tents, furniture: L.furniture, nisa: L.nisa, storage: L.storage, slots: L.lanternSlots, exits: L.exits, fence: L.fence.map((f, i) => ({ ...f, state: scene.sim.fenceStates[i] })) };
       },
-      get nisa() { return { x: scene.sim.nisa.x, y: scene.sim.nisa.y, mode: scene.sim.nisa.mode }; },
+      get nisa() { return { x: scene.sim.nisa.x, y: scene.sim.nisa.y, mode: scene.sim.nisa.mode, toGo: Math.hypot(scene.sim.nisa.target.x - scene.sim.nisa.x, scene.sim.nisa.target.y - scene.sim.nisa.y) }; },
       zoom: (z: number | null) => { scene.zoomOverride = z; scene.applyZoom(); for (const f of scene.fog) f.setVisible(z === null); },
       start: () => scene.events.emit("startGame"),
       goTo: (x: number, y: number) => { scene.affan.root.setPosition(x, y); scene.sim.player.x = x; scene.sim.player.y = y; scene.camPos.set(x, y - 34); },

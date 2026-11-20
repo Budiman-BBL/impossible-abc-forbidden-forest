@@ -1,0 +1,15 @@
+{
+ "scale": 0.3846,
+ "table": {
+  "benchDx": 47.4,
+  "benchDy": 10.2,
+  "tableW": 152.7,
+  "tableH": 97.4,
+  "benchW": 92.5
+ },
+ "aLetter": {
+  "y0": 0.281,
+  "y1": 0.713
+ },
+ "walkFrames": 6
+}

@@ -56,6 +56,24 @@ describe("camp v2 layout (fixed, hand-placed)", () => {
   });
 });
 
+describe("letter-A stone glow", () => {
+  it("fills halfway while gathering for the first fire, then follows the fire's fuel", () => {
+    const s = new CampSim(4);
+    expect(s.letterGlow()).toBe(0);
+    s.inv.kayu = 5; s.inv.batu = 1;
+    expect(s.letterGlow()).toBeCloseTo(0.5 * 6 / 7);
+    s.inv.batu = 2;
+    expect(s.letterGlow()).toBeCloseTo(0.5);
+    s.player.x = s.layout.fire.x; s.player.y = s.layout.fire.y + 40;
+    s.act();
+    expect(s.fire.lit).toBe(true);
+    expect(s.letterGlow()).toBeGreaterThan(0.5);
+    s.fire.fuel = 0; s.fire.lit = false;
+    expect(s.letterGlow()).toBeCloseTo(0.15);
+    expect(s.lettersFound).toEqual([]); // finding the letter is not part of this sprint
+  });
+});
+
 describe("Cikgu Nisa routine", () => {
   const L = makeCampLayout();
   const far = { x: L.fire.x + 2000, y: L.fire.y };
