@@ -1,1 +1,1 @@
-export const POC_VERSION = "0.5.0-sprint1";
+export const POC_VERSION = "0.6.0-camp-v2";
